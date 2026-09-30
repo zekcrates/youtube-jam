@@ -117,6 +117,7 @@ function App() {
   const wsRef = useRef(null)
   const applyingRef = useRef(false)
   const jamRoomRef = useRef('')
+  const jamMembersRef = useRef([])
   const currentRef = useRef(current)
   currentRef.current = current
   const jamConnected = !!jamRoom
@@ -296,20 +297,39 @@ function App() {
     const wsUrl = BACKEND ? `${BACKEND.replace(/^http/, 'ws')}/ws` : `${proto}://${window.location.host}/ws`
     const ws = new WebSocket(wsUrl)
     if (wsRef.current) wsRef.current.close()
+    jamMembersRef.current = []
     wsRef.current = ws
     ws.onopen = () => ws.send(JSON.stringify({ t: 'join', room, name: who, create }))
     ws.onmessage = (e) => {
       let msg
       try { msg = JSON.parse(e.data) } catch { return }
       if (msg.t === 'error') { setJamStatus(msg.message); try { localStorage.removeItem('jam-session') } catch {} try { ws.close() } catch {} wsRef.current = null; return }
-      if (msg.t === 'joined') { setJamRoom(msg.room); setJamMembers(msg.members || []); setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : `Joined ${msg.room} — press play to start`); try { localStorage.setItem('jam-session', JSON.stringify({ room: msg.room, name: who })) } catch {} pushToast(`Joined room ${msg.room}`); if (msg.state) applyJamState(msg.state) }
-      if (msg.t === 'members') setJamMembers(msg.members || [])
+      if (msg.t === 'joined') {
+        const members = msg.members || []
+        jamMembersRef.current = members
+        setJamRoom(msg.room)
+        setJamMembers(members)
+        setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : `Joined ${msg.room} — press play to start`)
+        try { localStorage.setItem('jam-session', JSON.stringify({ room: msg.room, name: who })) } catch {}
+        pushToast(`Joined room ${msg.room}`)
+        if (msg.state) applyJamState(msg.state)
+      }
+      if (msg.t === 'members') {
+        const previous = jamMembersRef.current
+        const members = msg.members || []
+        if (previous.length) {
+          members.filter((member) => !previous.includes(member)).forEach((member) => pushToast(`${member} joined the jam`))
+          previous.filter((member) => !members.includes(member)).forEach((member) => pushToast(`${member} left the jam`))
+        }
+        jamMembersRef.current = members
+        setJamMembers(members)
+      }
       if (msg.t === 'state') applyJamState(msg.state)
     }
     ws.onclose = () => { setJamStatus((s) => s && s.startsWith('No jam with code') ? s : 'Disconnected'); }
     ws.onerror = () => setJamStatus('Could not reach the jam — check your connection and try again.')
   }
-  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; setJamRoom(''); setJamMembers([]); setJamStatus(''); try { localStorage.removeItem('jam-session') } catch {} pushToast('Left the jam') }
+  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; jamMembersRef.current = []; setJamRoom(''); setJamMembers([]); setJamStatus(''); try { localStorage.removeItem('jam-session') } catch {} pushToast('Left the jam') }
   // Rejoin after refresh: the room (and its last state) survives on the server
   // as long as someone is still in it.
   useEffect(() => {
@@ -378,6 +398,7 @@ function App() {
   const search = async (value = query) => {
     setQuery(value)
     if (!value.trim()) { setTracks(starterTracks); setSearchError(''); return }
+    setTracks([])
     setLoading(true)
     setSearchError('')
     try {
@@ -573,7 +594,7 @@ function App() {
         {playlists.map((p) => <button key={p.id} className={`chip ${selectedPlaylist === p.id ? 'active' : ''}`} onClick={() => openPlaylist(p.id)}>{p.name}</button>)}
         <button className="chip new" onClick={() => setShowCreatePlaylist(true)} aria-label="New playlist"><Plus size={14}/></button>
       </div>}
-      <section className={`section-head ${!query && activeTab !== 'Library' ? 'home-section-head' : ''}`}><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} song${selectedLibraryTracks.length === 1 ? '' : 's'}` : 'Made for this moment'}</h3>{activeTab === 'Library' && <p>Your saved music, ready whenever you are.</p>}</div></section>
+      <section className={`section-head ${!query && activeTab !== 'Library' ? 'home-section-head' : ''}`}><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} song${selectedLibraryTracks.length === 1 ? '' : 's'}` : 'Made for this moment'}</h3>{activeTab === 'Library' && !query && <p>Your saved music, ready whenever you are.</p>}</div></section>
       <section className={`track-grid ${!query && activeTab !== 'Library' ? 'home-track-grid' : ''}`}>{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
               if (isInTarget(track)) {
                 if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
