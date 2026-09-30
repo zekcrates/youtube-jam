@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Album, Check, Heart, Home, Library, ListMusic,
-  LoaderCircle, Menu, Pause, Play, Plus, Search, SkipBack,
+  Album, Check, Heart, Home, Library, ListMusic, MessageCircle,
+  LoaderCircle, Menu, Pause, Play, Plus, Search, Send, SkipBack,
   SkipForward, Sparkles, Trash2, Volume2, X, Zap
 } from 'lucide-react'
 import './styles.css'
@@ -106,10 +106,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('Discover')
   const [showPlaylist, setShowPlaylist] = useState(false)
   const [showJam, setShowJam] = useState(false)
+  const [showChat, setShowChat] = useState(false)
   const [jamName, setJamName] = useState(() => `guest-${Math.floor(1000 + Math.random() * 9000)}`)
   const [jamRoomInput, setJamRoomInput] = useState('')
   const [jamRoom, setJamRoom] = useState('')
   const [jamMembers, setJamMembers] = useState([])
+  const [jamMessages, setJamMessages] = useState([])
+  const [jamDraft, setJamDraft] = useState('')
   const [jamStatus, setJamStatus] = useState('')
   const audioRef = useRef(null)
   const ytRef = useRef({ player: null, ready: false, videoId: null })
@@ -118,10 +121,15 @@ function App() {
   const applyingRef = useRef(false)
   const jamRoomRef = useRef('')
   const jamMembersRef = useRef([])
+  const chatEndRef = useRef(null)
   const currentRef = useRef(current)
   currentRef.current = current
   const jamConnected = !!jamRoom
   jamRoomRef.current = jamRoom
+
+  useEffect(() => {
+    if (showChat) chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [jamMessages.length, showChat])
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1400)
@@ -307,9 +315,10 @@ function App() {
       if (msg.t === 'joined') {
         const members = msg.members || []
         jamMembersRef.current = members
+        setJamMessages([])
         setJamRoom(msg.room)
         setJamMembers(members)
-        setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : `Joined ${msg.room} — press play to start`)
+        setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : '')
         try { localStorage.setItem('jam-session', JSON.stringify({ room: msg.room, name: who })) } catch {}
         pushToast(`Joined room ${msg.room}`)
         if (msg.state) applyJamState(msg.state)
@@ -324,12 +333,28 @@ function App() {
         jamMembersRef.current = members
         setJamMembers(members)
       }
+      if (msg.t === 'chat' && msg.message?.text) {
+        setJamMessages((old) => [...old.slice(-39), msg.message])
+      }
       if (msg.t === 'state') applyJamState(msg.state)
     }
     ws.onclose = () => { setJamStatus((s) => s && s.startsWith('No jam with code') ? s : 'Disconnected'); }
     ws.onerror = () => setJamStatus('Could not reach the jam — check your connection and try again.')
   }
-  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; jamMembersRef.current = []; setJamRoom(''); setJamMembers([]); setJamStatus(''); try { localStorage.removeItem('jam-session') } catch {} pushToast('Left the jam') }
+  const sendJamChat = (event) => {
+    event.preventDefault()
+    const text = jamDraft.trim().slice(0, 280)
+    if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    try {
+      wsRef.current.send(JSON.stringify({ t: 'chat', text }))
+      setJamMessages((old) => [...old.slice(-39), { name: jamName || 'guest', text, at: Date.now() }])
+    } catch {
+      pushToast('Chat is unavailable right now', 'error')
+      return
+    }
+    setJamDraft('')
+  }
+  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; jamMembersRef.current = []; setJamRoom(''); setJamMembers([]); setJamMessages([]); setJamDraft(''); setShowChat(false); setJamStatus(''); try { localStorage.removeItem('jam-session') } catch {} pushToast('Left the jam') }
   // Rejoin after refresh: the room (and its last state) survives on the server
   // as long as someone is still in it.
   useEffect(() => {
@@ -562,7 +587,7 @@ function App() {
   return <div className="app-shell">
     {showSplash && <div className="app-splash" role="status" aria-label="Loading abyss"><div className="splash-inner"><div className="splash-brand"><span className="splash-mark"><img src="/branding/abyss-a-simple-1.png" alt="" /></span><span>abyss</span></div></div></div>}
     <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
-      <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><img src="/branding/abyss-a-simple-1.png" alt="" /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => setShowJam(true)}><span className="live-dot" />{jamRoom}</button>}</div>
+      <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><img src="/branding/abyss-a-simple-1.png" alt="" /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => { setShowChat(false); setShowJam(true) }}><span className="live-dot" />{jamRoom}</button>}</div>
       <div className="nav-label">YOUR LIBRARY</div>
       <nav className="nav-group library-nav">
         <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => { openPlaylist('local'); setMobileNavOpen(false) }} />
@@ -573,11 +598,22 @@ function App() {
       <nav className="nav-group library-nav">
         {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => { openPlaylist(item.id); setMobileNavOpen(false) }} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
       </nav>
-      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setShowJam(true); setMobileNavOpen(false) }}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 abyss</span><span>v0.1 beta</span></div></div>
+      {jamRoom && <><div className="nav-label chat-label">YOUR JAM</div><nav className="nav-group chat-nav"><NavItem icon={<MessageCircle size={18} />} label="Chat" active={showChat} onClick={() => { setShowChat(true); setShowJam(false); setMobileNavOpen(false) }} /></nav></>}
+      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setShowChat(false); setShowJam(true); setMobileNavOpen(false) }}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 abyss</span><span>v0.1 beta</span></div></div>
     </aside>
     {mobileNavOpen && <button className="mobile-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
 
-    <main className="main-content">
+    <main className={'main-content ' + (showChat && jamRoom ? 'chat-open' : '')}>
+      {showChat && jamRoom && <section className="chat-page">
+        <div className="chat-page-header"><div className="chat-title"><div className="chat-room-avatar"><MessageCircle size={19}/></div><div><h1>Room {jamRoom}</h1><span className="chat-presence"><i className="live-dot" /> {jamMembers.length} in this room</span></div></div></div>
+        <div className="chat-page-shell">
+          <div className="chat-messages" aria-live="polite">
+            {!jamMessages.length && <div className="chat-empty"><MessageCircle size={25}/><strong>Start the conversation</strong><span>Suggest a song, say hi, or decide what plays next.</span></div>}
+            {jamMessages.map((message, index) => <div className={message.name === jamName ? 'chat-message-row mine' : 'chat-message-row'} key={message.at || index}><div className="chat-message-stack"><strong className="chat-author">{message.name || 'guest'}</strong><div className="chat-bubble">{message.text}</div>{message.at && <span className="chat-time">{new Date(message.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}</div></div>)}<div ref={chatEndRef} />
+          </div>
+          <form className="chat-composer" onSubmit={sendJamChat}><input value={jamDraft} onChange={(e) => setJamDraft(e.target.value)} maxLength={280} placeholder="Write a message…" aria-label="Message your friend" /><button type="submit" disabled={!jamDraft.trim()} aria-label="Send message"><Send size={16} /></button></form>
+        </div>
+      </section>}
       {!query && activeTab !== 'Library' && <div className="mobile-home-heading"><h1>Find your next <em>favorite.</em></h1></div>}
       <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { const value = e.target.value; setQuery(value); fetchSuggest(value); if (value) setTracks([]); else search('') }} onKeyDown={(e) => {
         if (e.key === 'ArrowDown' && suggestOpen) { e.preventDefault(); setSuggestIdx((i) => (i + 1) % suggest.length) }
@@ -627,10 +663,11 @@ function App() {
       </>}
       {jamStatus && <p style={{ color: 'var(--muted)', fontSize: 11, marginTop: 14 }}>{jamStatus}</p>}
     </div></section></div>}
-    <nav className="mobile-tabs">
+    <nav className={`mobile-tabs ${jamRoom ? 'has-chat' : ''}`}>
       <button className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setActiveTab('Discover'); setQuery(''); search(''); window.scrollTo({ top: 0 }) }}><Home size={22}/><span>Home</span></button>
       <button className={activeTab === 'Library' ? 'active' : ''} onClick={() => { if (activeTab !== 'Library') openPlaylist('local'); window.scrollTo({ top: 0 }) }}><Library size={22}/><span>Library</span></button>
-      <button className={jamRoom ? 'live' : ''} onClick={() => setShowJam(true)}><Zap size={22}/><span>Jam</span>{jamRoom && <i className="live-dot" />}</button>
+      <button className={jamRoom ? 'live' : ''} onClick={() => { setShowChat(false); setShowJam(true) }}><Zap size={22}/><span>Jam</span>{jamRoom && <i className="live-dot" />}</button>
+      {jamRoom && <button className={showChat ? 'active' : ''} onClick={() => { setShowChat(true); setShowJam(false) }}><MessageCircle size={22}/><span>Chat</span></button>}
     </nav>
   </div>
 }

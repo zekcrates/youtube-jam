@@ -281,6 +281,12 @@ wss.on('connection', (ws) => {
       broadcast(room, { t: 'state', state }, ws);
       return;
     }
+    if (msg.t === 'chat') {
+      const text = String(msg.text || '').trim().slice(0, 280);
+      if (!text) return;
+      broadcast(room, { t: 'chat', message: { name, text, at: Date.now() } }, ws);
+      return;
+    }
     if (msg.t === 'bye') {
       rooms.get(room)?.members.delete(ws);
       broadcast(room, { t: 'members', members: roomMembers(room) });
