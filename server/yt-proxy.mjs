@@ -84,7 +84,7 @@ async function resolveAudioUrl(videoId) {
   throw lastErr || new Error('could not resolve audio');
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, yt: !!yt }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, yt: !!yt, auth: !!process.env.YT_COOKIE }));
 
 app.get('/api/search', async (req, res) => {
   try {
