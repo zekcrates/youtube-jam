@@ -154,7 +154,7 @@ app.get('/api/stream', async (req, res) => {
   }
 });
 
-const PORT = process.env.YT_PORT || 3001;
+const PORT = process.env.PORT || process.env.YT_PORT || 3001;
 const server = http.createServer(app);
 
 // --- Jam sync: tiny room hub. Clients share videoId + position, never stream URLs
@@ -230,4 +230,16 @@ app.get('/api/room/:code', (req, res) => {
   res.json({ room: code, members: r ? roomMembers(code) : [], hasState: !!r?.state });
 });
 
-server.listen(PORT, () => console.log(`[yt-proxy] listening on http://localhost:${PORT}`));
+// Single-service deploy: serve the built frontend (vite dist) from this same
+// server so /api and /ws stay same-origin wherever it's hosted.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.join(here, '..', 'dist');
+if (fs.existsSync(path.join(distDir, 'index.html'))) {
+  app.use(express.static(distDir));
+  app.use((req, res) => {
+    if (req.path.startsWith('/api')) return res.status(404).json({ error: 'not found' });
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
+
+server.listen(PORT, () => console.log(`[jam] listening on http://localhost:${PORT}`));

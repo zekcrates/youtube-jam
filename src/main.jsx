@@ -178,7 +178,7 @@ function App() {
       if (msg.t === 'state') applyJamState(msg.state)
     }
     ws.onclose = () => { setJamStatus((s) => s && s.startsWith('No jam with code') ? s : 'Disconnected'); }
-    ws.onerror = () => setJamStatus('Could not reach jam server — is `npm run proxy` running?')
+    ws.onerror = () => setJamStatus('Could not reach the jam — check your connection and try again.')
   }
   const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; setJamRoom(''); setJamMembers([]); setJamStatus('') }
   const makeRoomCode = () => { const c = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += c[Math.floor(Math.random() * c.length)]; return s }
@@ -219,7 +219,7 @@ function App() {
       })))
     } catch {
       setTracks(starterTracks)
-      setSearchError('Something is wrong with YouTube search — showing local music. Is `npm run proxy` running?')
+      setSearchError('Search isn’t available right now — showing local music.')
     }
     finally { setLoading(false) }
   }
