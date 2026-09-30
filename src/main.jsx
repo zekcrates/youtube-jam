@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Album, Heart, Home, Library, ListMusic,
+  Album, Check, Heart, Home, Library, ListMusic,
   LoaderCircle, Menu, Pause, Play, Plus, Search, SkipBack,
   SkipForward, Sparkles, Trash2, Volume2, X, Zap
 } from 'lucide-react'
@@ -85,6 +85,13 @@ function App() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [addTarget, setAddTarget] = useState(null)
   const [adInfo, setAdInfo] = useState(null)
+  const [toasts, setToasts] = useState([])
+  const toastId = useRef(0)
+  const pushToast = (msg, kind = 'ok') => {
+    const id = ++toastId.current
+    setToasts((old) => [...old.slice(-2), { id, msg, kind }])
+    setTimeout(() => setToasts((old) => old.filter((t) => t.id !== id)), 2800)
+  }
   const [current, setCurrent] = useState(starterTracks[0])
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -267,14 +274,14 @@ function App() {
       let msg
       try { msg = JSON.parse(e.data) } catch { return }
       if (msg.t === 'error') { setJamStatus(msg.message); try { ws.close() } catch {} wsRef.current = null; return }
-      if (msg.t === 'joined') { setJamRoom(msg.room); setJamMembers(msg.members || []); setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : `Joined ${msg.room} — press play to start`); if (msg.state) applyJamState(msg.state) }
+      if (msg.t === 'joined') { setJamRoom(msg.room); setJamMembers(msg.members || []); setJamStatus(msg.state ? `Synced to ${msg.state.by || 'room'}` : `Joined ${msg.room} — press play to start`); pushToast(`Joined room ${msg.room}`); if (msg.state) applyJamState(msg.state) }
       if (msg.t === 'members') setJamMembers(msg.members || [])
       if (msg.t === 'state') applyJamState(msg.state)
     }
     ws.onclose = () => { setJamStatus((s) => s && s.startsWith('No jam with code') ? s : 'Disconnected'); }
     ws.onerror = () => setJamStatus('Could not reach the jam — check your connection and try again.')
   }
-  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; setJamRoom(''); setJamMembers([]); setJamStatus('') }
+  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; setJamRoom(''); setJamMembers([]); setJamStatus(''); pushToast('Left the jam') }
   const makeRoomCode = () => { const c = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += c[Math.floor(Math.random() * c.length)]; return s }
 
   // Broadcast local play/pause/track changes (not remote-applied ones).
@@ -376,7 +383,11 @@ function App() {
   }
   const skipBy = (seconds) => seekTo(Math.max(0, Math.min(duration || 0, getPosition() + seconds)))
   const isLiked = (track) => liked.some((song) => song.trackId === track.trackId)
-  const toggleLike = (track) => setLiked((old) => old.some((song) => song.trackId === track.trackId) ? old.filter((song) => song.trackId !== track.trackId) : [...old, track])
+  const toggleLike = (track) => {
+    const has = liked.some((song) => song.trackId === track.trackId)
+    setLiked((old) => has ? old.filter((song) => song.trackId !== track.trackId) : [...old, track])
+    pushToast(has ? 'Removed from Liked Songs' : 'Added to Liked Songs')
+  }
   const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my' && selectedPlaylist !== 'liked'
   const customViewed = viewingCustom ? playlists.find((item) => item.id === selectedPlaylist) : null
   // The + button always targets what you're looking at: a custom playlist when
@@ -386,21 +397,26 @@ function App() {
     : playlist.some((song) => song.trackId === track.trackId)
   const toggleTrack = (track) => {
     if (viewingCustom && customViewed) {
+      const has = customViewed.tracks.some((song) => song.trackId === track.trackId)
       setPlaylists((old) => old.map((item) => {
         if (item.id !== selectedPlaylist) return item
-        const has = item.tracks.some((song) => song.trackId === track.trackId)
         return { ...item, tracks: has ? item.tracks.filter((song) => song.trackId !== track.trackId) : [...item.tracks, track] }
       }))
+      pushToast(has ? `Removed from ${customViewed.name}` : `Added to ${customViewed.name}`)
       return
     }
-    setPlaylist((old) => old.some((item) => item.trackId === track.trackId) ? old.filter((item) => item.trackId !== track.trackId) : [...old, track])
+    const has = playlist.some((item) => item.trackId === track.trackId)
+    setPlaylist((old) => has ? old.filter((item) => item.trackId !== track.trackId) : [...old, track])
+    pushToast(has ? 'Removed from My playlist' : 'Added to My playlist')
   }
   const addToPlaylist = toggleTrack
   const addTrackTo = (listId, track) => {
     if (!track) return
+    const name = listId === 'my' ? 'My playlist' : playlists.find((p) => p.id === listId)?.name || 'playlist'
     if (listId === 'my') setPlaylist((old) => old.some((item) => item.trackId === track.trackId) ? old : [...old, track])
     else setPlaylists((old) => old.map((item) => item.id === listId && !item.tracks.some((song) => song.trackId === track.trackId) ? { ...item, tracks: [...item.tracks, track] } : item))
     setAddTarget(null)
+    pushToast(`Added to ${name}`)
   }
   const removeFromPlaylist = (id) => setPlaylist((old) => old.filter((item) => item.trackId !== id))
   const deletePlaylist = (id) => {
@@ -410,10 +426,11 @@ function App() {
   const requestDelete = (target) => setConfirmDelete(target)
   const confirmRemoval = () => {
     if (!confirmDelete) return
-    if (confirmDelete.kind === 'playlist') deletePlaylist(confirmDelete.id)
+    if (confirmDelete.kind === 'playlist') { deletePlaylist(confirmDelete.id); pushToast(`Deleted “${confirmDelete.label}”`) }
     if (confirmDelete.kind === 'track') {
       if (confirmDelete.playlistId === 'my') removeFromPlaylist(confirmDelete.id)
       else setPlaylists((old) => old.map((item) => item.id === confirmDelete.playlistId ? { ...item, tracks: item.tracks.filter((track) => track.trackId !== confirmDelete.id) } : item))
+      pushToast(`Removed “${confirmDelete.label}”`)
     }
     setConfirmDelete(null)
   }
@@ -428,6 +445,7 @@ function App() {
     if (!name) return
     const created = { id: `playlist-${Date.now()}`, name, description: 'A playlist you made', tracks: [] }
     setPlaylists((old) => [...old, created]); setNewPlaylistName(''); setShowCreatePlaylist(false); setSelectedPlaylist(created.id); setActiveTab('Library'); setTracks([])
+    pushToast(`Created “${name}”`)
   }
 
   return <div className="app-shell">
@@ -471,8 +489,9 @@ function App() {
       {adInfo && <div className="ad-tag">AD · your song resumes after</div>}
       <div id="jam-yt-player" />
     </div>
-    <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={17} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.volume = v; try { ytRef.current.player?.setVolume(Math.round(v * 100)) } catch {} }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
-    {showPlaylist && <div className="modal-backdrop" onClick={() => setShowPlaylist(false)}><section className="playlist-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">YOUR LIBRARY</div><h2>My playlist <span>{playlist.length}</span></h2></div><button className="icon-button" onClick={() => setShowPlaylist(false)}><X size={20}/></button></div><div className="modal-list">{!playlist.length && <div className="empty" style={{ margin: 12 }}>Nothing here yet — hit + on any song to add it.</div>}{playlist.map((track, i) => <div className="modal-track" key={track.trackId}><span className="track-number">{String(i + 1).padStart(2, '0')}</span><img src={track.artworkUrl100}/><div className="modal-copy"><strong>{track.trackName}</strong></div><button onClick={() => togglePlay(track)}>{playing && current.trackId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor"/>}</button><button className="remove-button" onClick={() => requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: 'my' })}><Trash2 size={15}/></button></div>)}</div><div className="modal-footer"><button className="primary-button small" onClick={() => { setShowPlaylist(false); document.querySelector('.search-wrap input')?.focus() }}><Plus size={15}/> Add songs</button></div></section></div>}
+    <div className="toasts" aria-live="polite">{toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'error' ? <X size={14}/> : <Check size={14}/>}<span>{t.msg}</span></div>)}</div>
+    <footer className="player"><div className="now-playing"><span className="art-wrap"><img src={current.artworkUrl100}/><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={13} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></span><div><strong>{current.trackName}</strong></div></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.volume = v; try { ytRef.current.player?.setVolume(Math.round(v * 100)) } catch {} }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
+    {showPlaylist && <div className="modal-backdrop" onClick={() => setShowPlaylist(false)}><section className="playlist-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">YOUR LIBRARY</div><h2>My playlist <span>{playlist.length}</span></h2></div><button className="icon-button" onClick={() => setShowPlaylist(false)}><X size={20}/></button></div><div className="modal-list">{!playlist.length && <div className="empty" style={{ margin: 12 }}>Nothing here yet — hit + on any song to add it.</div>}{playlist.map((track) => <div className="modal-track" key={track.trackId}><img src={track.artworkUrl100}/><div className="modal-copy"><strong>{track.trackName}</strong></div><button onClick={() => togglePlay(track)}>{playing && current.trackId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor"/>}</button><button className="remove-button" onClick={() => requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: 'my' })}><Trash2 size={15}/></button></div>)}</div><div className="modal-footer"><button className="primary-button small" onClick={() => { setShowPlaylist(false); document.querySelector('.search-wrap input')?.focus() }}><Plus size={15}/> Add songs</button></div></section></div>}
     {confirmDelete && <div className="confirm-backdrop" onClick={() => setConfirmDelete(null)}><section className="confirm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}><div className="confirm-icon"><Trash2 size={19}/></div><div><h2>{confirmDelete.kind === 'playlist' ? 'Delete this playlist?' : 'Remove this song?'}</h2><p>{confirmDelete.kind === 'playlist' ? `“${confirmDelete.label}” and its songs will be removed.` : `Remove “${confirmDelete.label}” from this playlist?`}</p></div><div className="confirm-actions"><button className="text-button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" onClick={confirmRemoval}>Delete</button></div></section></div>}
     {addTarget && <div className="modal-backdrop" onClick={() => setAddTarget(null)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">ADD TO PLAYLIST</div><h2 className="pick-title">{addTarget.trackName}</h2></div><button className="icon-button" onClick={() => setAddTarget(null)}><X size={20}/></button></div><div className="create-body"><div className="pick-list"><button className="pick-item" onClick={() => addTrackTo('my', addTarget)}><span><ListMusic size={16}/> My playlist</span><small>{playlist.length}</small></button>{playlists.map((p) => <button key={p.id} className="pick-item" onClick={() => addTrackTo(p.id, addTarget)}><span><Album size={16}/> {p.name}</span><small>{p.tracks.length}</small></button>)}</div></div></section></div>}
     {showCreatePlaylist && <div className="modal-backdrop" onClick={() => setShowCreatePlaylist(false)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">NEW PLAYLIST</div><h2>Create a playlist</h2></div><button className="icon-button" onClick={() => setShowCreatePlaylist(false)}><X size={20}/></button></div><div className="create-body"><label htmlFor="playlist-name">Playlist name</label><input id="playlist-name" autoFocus value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createPlaylist()} placeholder="e.g. songs for the drive"/><div className="create-actions"><button className="text-button" onClick={() => setShowCreatePlaylist(false)}>Cancel</button><button className="primary-button small" onClick={createPlaylist}><Plus size={15}/> Create playlist</button></div></div></section></div>}
@@ -498,7 +517,7 @@ function App() {
 }
 
 function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge > 0 && <small>{badge}</small>}</button> }
-function TrackCard({ track, index, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap" onClick={onPlay} role="button" aria-label={playing && current.trackId === track.trackId ? 'Pause' : 'Play'} title={playing && current.trackId === track.trackId ? 'Pause' : 'Play'}><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/>{playing && current.trackId === track.trackId && <span className="playing-bars"><i /><i /><i /></span>}</div><span className="track-index">0{index + 1}</span><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={isLiked ? 'liked' : ''} onClick={onLike} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
+function TrackCard({ track, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap" onClick={onPlay} role="button" aria-label={playing && current.trackId === track.trackId ? 'Pause' : 'Play'} title={playing && current.trackId === track.trackId ? 'Pause' : 'Play'}><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/>{playing && current.trackId === track.trackId && <span className="playing-bars"><i /><i /><i /></span>}</div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={isLiked ? 'liked' : ''} onClick={onLike} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
 
 createRoot(document.getElementById('root')).render(<App />)
 

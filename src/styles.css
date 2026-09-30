@@ -107,14 +107,14 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* Track rows — light list */
 .track-grid { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
 .track-card {
-  display: grid; grid-template-columns: 34px 54px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 14px;
   min-height: 70px; padding: 8px 14px 8px 12px;
   border: 1px solid transparent; border-radius: 16px; background: var(--card);
   box-shadow: 0 1px 2px #3a2f1a08; transition: border .15s, box-shadow .15s, transform .15s;
 }
 .track-card:hover { border-color: var(--line); box-shadow: 0 8px 24px #3a2f1a12; transform: translateY(-1px); }
 .track-card.selected { border-color: #c9d689; box-shadow: 0 0 0 3px #c5ef5430; }
-.cover-wrap { position: relative; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; background: var(--wash); grid-column: 2; grid-row: 1; cursor: pointer; transition: transform .12s; }
+.cover-wrap { position: relative; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; background: var(--wash); grid-column: 1; grid-row: 1; cursor: pointer; transition: transform .12s; }
 .cover-wrap:active { transform: scale(.94); }
 .playing-bars { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: flex-end; gap: 3px; height: 20px; padding: 4px 7px; border-radius: 9px; background: rgba(20, 18, 12, .55); }
 .playing-bars i { width: 3px; border-radius: 2px; background: var(--lime); transform-origin: bottom; animation: eq .9s ease-in-out infinite; }
@@ -135,8 +135,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .card-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 .card-play:disabled { opacity: .5; }
-.track-index { grid-column: 1; grid-row: 1; color: var(--faint); font-family: 'DM Mono'; font-size: 10px; text-align: center; }
-.track-meta { grid-column: 3; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 18px; padding: 0; min-width: 0; }
+.track-meta { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 18px; padding: 0; min-width: 0; }
 .track-title { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track-artist { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track-bottom { display: flex; align-items: center; gap: 12px; }
@@ -149,6 +148,39 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .now-playing button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--faint); flex: none; }
 .now-playing button:hover { color: #e11d48; background: #fde4ea; }
 .now-playing button.liked { color: #e11d48; }
+/* Heart sits on the artwork corner instead of crowding the row. */
+.art-wrap { position: relative; flex: none; }
+.art-wrap button {
+  position: absolute; right: -7px; bottom: -7px;
+  width: 26px; height: 26px;
+  background: #fff; border: 1px solid var(--line); border-radius: 50%;
+  box-shadow: 0 4px 12px #3a2f1a26; color: var(--faint);
+}
+.art-wrap button:hover { color: #e11d48; border-color: #f3c2cb; }
+.art-wrap button.liked { color: #e11d48; border-color: #f3c2cb; background: #fde4ea; }
+/* Toasts: little confirmations floating above the player. */
+.toasts {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 118px; z-index: 30;
+  display: grid; gap: 8px; justify-items: center;
+  width: min(380px, calc(100vw - 32px)); pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 9px;
+  max-width: 100%; padding: 12px 16px; border-radius: 16px;
+  background: #221e17; color: #faf8f4;
+  font-size: 12.5px; font-weight: 600;
+  box-shadow: 0 14px 40px #00000055;
+  animation: toastin .25s ease-out;
+}
+.toast svg { flex: none; color: var(--lime); }
+.toast.error { background: #3a1512; }
+.toast.error svg { color: #ff9d97; }
+.toast span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+@keyframes toastin { from { transform: translateY(10px); opacity: 0; } }
+@media (max-width: 650px) {
+  .toasts { bottom: calc(196px + env(safe-area-inset-bottom)); }
+}
 .track-card:after { content: '•••'; grid-column: 4; grid-row: 1; color: #d3ccbd; letter-spacing: 2px; font-size: 12px; }
 
 .loading, .empty {
@@ -202,7 +234,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .modal-track { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; transition: background .12s; }
 .modal-track:hover { background: var(--wash); }
 .modal-track img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }
-.track-number { color: var(--faint); font-family: 'DM Mono'; font-size: 10px; width: 20px; }
 .modal-copy { min-width: 0; flex: 1; }
 .modal-copy strong, .modal-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-copy strong { font-size: 12.5px; }
@@ -286,7 +317,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .eyebrow { display: none; }
   .search-wrap { width: 100%; }
   .welcome-row { margin-top: 30px; }
-  .track-card { grid-template-columns: 24px 48px minmax(0, 1fr) 16px; gap: 10px; padding: 7px 10px 7px 8px; }
+  .track-card { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; padding: 7px 10px 7px 8px; }
   .cover-wrap { width: 48px; height: 48px; }
   .track-bottom span { display: none; }
   /* (Phone player is fully defined in the block below.) */
@@ -330,10 +361,9 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .section-head p { margin-top: 4px; font-size: 11px; }
   .section-head > .text-button { font-size: 11px; }
   .track-grid { gap: 8px; }
-  .track-card { grid-template-columns: 20px 50px minmax(0, 1fr); gap: 10px; min-height: 66px; padding: 8px 10px 8px 4px; border-radius: 16px; }
+  .track-card { grid-template-columns: 50px minmax(0, 1fr); gap: 10px; min-height: 66px; padding: 8px 10px 8px 4px; border-radius: 16px; }
   .track-card:active { background: var(--lime-wash); }
   .cover-wrap { width: 50px; height: 50px; border-radius: 12px; }
-  .track-index { font-size: 9px; }
   .track-title { font-size: 13.5px; }
   .track-bottom { gap: 6px; }
   .track-bottom button { width: 34px; height: 34px; }
