@@ -83,6 +83,7 @@ function App() {
   const [newPlaylistName, setNewPlaylistName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [addTarget, setAddTarget] = useState(null)
+  const [adInfo, setAdInfo] = useState(null)
   const [current, setCurrent] = useState(starterTracks[0])
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -153,6 +154,7 @@ function App() {
     return audioRef.current?.currentTime || 0
   }
   const playTrackAt = (track, pos, shouldPlay) => {
+    setAdInfo(null)
     setCurrent(track); setCurrentTime(pos); setDuration(track.trackTimeMillis / 1000 || 0)
     if (track.youtubeId) {
       try { audioRef.current?.pause() } catch {}
@@ -284,13 +286,28 @@ function App() {
   }, [jamRoom, playing]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => wsRef.current?.close(), [])
   // Embed progress has no timeupdate events — poll while a YouTube track plays.
+  // Bonus: while an ad runs, the player's metadata flips to the AD's video,
+  // which is how we detect ads and show them nicely instead of a stuck UI.
   useEffect(() => {
     if (!playing || !current.youtubeId) return
     const id = setInterval(() => {
-      try { const t = ytRef.current.player?.getCurrentTime(); if (typeof t === 'number' && !Number.isNaN(t)) setCurrentTime(t) } catch {}
+      try {
+        const p = ytRef.current.player
+        const t = p?.getCurrentTime()
+        if (typeof t === 'number' && !Number.isNaN(t)) setCurrentTime(t)
+        const vd = p?.getVideoData?.()
+        if (vd?.video_id && vd.video_id !== currentRef.current.youtubeId) {
+          try { const d = p?.getDuration(); if (d) setDuration(d) } catch {}
+          setAdInfo((old) => old?.id === vd.video_id ? old : { id: vd.video_id, title: vd.title || 'Advertisement', author: vd.author || '' })
+        } else setAdInfo((old) => (old ? null : old))
+      } catch {}
     }, 500)
     return () => clearInterval(id)
   }, [playing, current])
+  // Ads need a visible player (that's where the real Skip button lives).
+  useEffect(() => {
+    try { ytRef.current.player?.setSize(adInfo ? 320 : 2, adInfo ? 180 : 2) } catch {}
+  }, [adInfo])
 
   const search = async (value = query) => {
     setQuery(value)
@@ -427,7 +444,7 @@ function App() {
       <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) search('') }} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}</div></header>
       <section className="welcome-row"><div><h1>{activeTab === 'Library' ? <>{selectedPlaylist === 'liked' ? 'Liked Songs' : playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && <p>{selectedPlaylist === 'local' ? 'Music available in this project.' : selectedPlaylist === 'liked' ? 'Every song you’ve hearted, in one place.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
       <section className="section-head"><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} songs` : 'Made for this moment'}</h3>{(query || activeTab === 'Library') && <p>{query ? 'Pick a track to preview or add to your playlist.' : 'Your saved music, ready whenever you are.'}</p>}</div>{query && <button className="text-button" onClick={() => search('')}>Clear search</button>}</section>
-      <section className="track-grid">{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
+      <section className="track-grid">{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
               if (isInTarget(track)) {
                 if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
                 else toggleTrack(track)
@@ -436,7 +453,12 @@ function App() {
             }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
-    <div aria-hidden="true" style={{ position: 'fixed', width: 2, height: 2, left: -10, top: -10, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}><div id="jam-yt-player" /></div>
+    <div aria-hidden={!adInfo} style={adInfo
+      ? { position: 'fixed', right: 16, bottom: 112, zIndex: 6, width: 320, borderRadius: 14, overflow: 'hidden', boxShadow: '0 18px 50px #3a2f1a33', background: '#000' }
+      : { position: 'fixed', width: 2, height: 2, left: -10, top: -10, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      {adInfo && <div className="ad-tag">AD · your song resumes after</div>}
+      <div id="jam-yt-player" />
+    </div>
     <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={17} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.volume = v; try { ytRef.current.player?.setVolume(Math.round(v * 100)) } catch {} }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
     {showPlaylist && <div className="modal-backdrop" onClick={() => setShowPlaylist(false)}><section className="playlist-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">YOUR LIBRARY</div><h2>My playlist <span>{playlist.length}</span></h2></div><button className="icon-button" onClick={() => setShowPlaylist(false)}><X size={20}/></button></div><div className="modal-list">{!playlist.length && <div className="empty" style={{ margin: 12 }}>Nothing here yet — hit + on any song to add it.</div>}{playlist.map((track, i) => <div className="modal-track" key={track.trackId}><span className="track-number">{String(i + 1).padStart(2, '0')}</span><img src={track.artworkUrl100}/><div className="modal-copy"><strong>{track.trackName}</strong></div><button onClick={() => togglePlay(track)}>{playing && current.trackId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor"/>}</button><button className="remove-button" onClick={() => requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: 'my' })}><Trash2 size={15}/></button></div>)}</div><div className="modal-footer"><button className="primary-button small" onClick={() => { setShowPlaylist(false); document.querySelector('.search-wrap input')?.focus() }}><Plus size={15}/> Add songs</button></div></section></div>}
     {confirmDelete && <div className="confirm-backdrop" onClick={() => setConfirmDelete(null)}><section className="confirm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}><div className="confirm-icon"><Trash2 size={19}/></div><div><h2>{confirmDelete.kind === 'playlist' ? 'Delete this playlist?' : 'Remove this song?'}</h2><p>{confirmDelete.kind === 'playlist' ? `“${confirmDelete.label}” and its songs will be removed.` : `Remove “${confirmDelete.label}” from this playlist?`}</p></div><div className="confirm-actions"><button className="text-button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" onClick={confirmRemoval}>Delete</button></div></section></div>}
