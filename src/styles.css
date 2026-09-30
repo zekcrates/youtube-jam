@@ -302,6 +302,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 
 /* App-only chrome (bottom tabs, chips, jam pill) — mobile only. */
 .mobile-tabs, .lib-chips, .jam-pill { display: none; }
+.mobile-home-heading { display: none; }
 
 @media (max-width: 1000px) {
   .app-shell { display: block; }
@@ -327,10 +328,10 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* Extra-small layout: keep the library usable without horizontal overflow. */
 @media (max-width: 650px) {
   .app-shell { min-width: 0; overflow-x: hidden; padding-bottom: 96px; }
-  .sidebar { position: sticky; top: 0; z-index: 8; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; padding: 10px 13px; box-shadow: 0 8px 24px #3a2f1a0b; }
+  .sidebar { position: sticky; top: 0; z-index: 8; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; padding: 8px 14px; background: rgba(250, 248, 244, .86); box-shadow: 0 1px 0 var(--line); }
   .sidebar > .nav-group { display: none; }
-  .brand { gap: 8px; padding: 0; font-size: 19px; }
-  .brand-mark { width: 28px; height: 28px; border-radius: 9px; }
+  .brand { gap: 8px; padding: 0; font-size: 17px; }
+  .brand-mark { width: 26px; height: 26px; border-radius: 8px; box-shadow: none; }
   /* (Top-bar nav retired — tabs own navigation now.) */
   .sidebar > .nav-group .nav-item { height: 32px; padding: 0 9px; font-size: 10.5px; border-radius: 10px; }
   .sidebar > .nav-group .nav-item svg { width: 15px; height: 15px; }
@@ -548,6 +549,10 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* Tabs replace the hamburger drawer — keep it buried. */
 @media (max-width: 650px) {
   .mobile-menu-button { display: none; }
+  .home-welcome, .home-section-head, .home-track-grid { display: none; }
+  .mobile-home-heading { display: block; margin: 4px 0 17px; }
+  .mobile-home-heading h1 { margin: 0; font-size: 30px; line-height: 1.08; letter-spacing: -.06em; font-weight: 800; }
+  .mobile-home-heading em { color: var(--lime-deep); font-family: Georgia, serif; font-style: italic; font-weight: 400; }
 }
 
 /* Mobile polish pass: curvy minimalist. Desktop untouched. */
