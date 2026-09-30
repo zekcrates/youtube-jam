@@ -114,7 +114,14 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 }
 .track-card:hover { border-color: var(--line); box-shadow: 0 8px 24px #3a2f1a12; transform: translateY(-1px); }
 .track-card.selected { border-color: #c9d689; box-shadow: 0 0 0 3px #c5ef5430; }
-.cover-wrap { position: relative; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; background: var(--wash); grid-column: 2; grid-row: 1; }
+.cover-wrap { position: relative; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; background: var(--wash); grid-column: 2; grid-row: 1; cursor: pointer; transition: transform .12s; }
+.cover-wrap:active { transform: scale(.94); }
+.playing-bars { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: flex-end; gap: 3px; height: 20px; padding: 4px 7px; border-radius: 9px; background: rgba(20, 18, 12, .55); }
+.playing-bars i { width: 3px; border-radius: 2px; background: var(--lime); transform-origin: bottom; animation: eq .9s ease-in-out infinite; }
+.playing-bars i:nth-child(1) { height: 60%; }
+.playing-bars i:nth-child(2) { height: 100%; animation-delay: .2s; }
+.playing-bars i:nth-child(3) { height: 45%; animation-delay: .45s; }
+@keyframes eq { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
 .cover-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .card-play {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.9);
@@ -399,25 +406,35 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .app-shell { padding-bottom: 0; }
   .player {
     grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-rows: auto;
-    padding: 10px 12px 12px;
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    border-radius: 18px; width: calc(100% - 20px);
+    grid-template-rows: auto auto;
+    gap: 2px 12px;
+    padding: 14px 14px 15px;
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    border: 1px solid #ece4d2;
+    border-radius: 26px; width: calc(100% - 20px);
+    background: rgba(255, 253, 249, .94);
+    box-shadow: 0 24px 60px #3a2f1a30, inset 0 1px 0 #ffffff;
   }
-  .now-playing { grid-column: 1; grid-row: 1; }
+  .now-playing { grid-column: 1; grid-row: 1; gap: 12px; align-items: center; }
+  .now-playing img { width: 50px; height: 50px; border-radius: 15px; box-shadow: 0 6px 14px #3a2f1a2b; }
+  .now-playing strong { font-size: 13.5px; letter-spacing: -.01em; }
+  .now-playing button { width: 34px; height: 34px; }
   .player-controls { display: contents; }
-  .control-buttons { grid-column: 2; grid-row: 1; }
-  .control-buttons .play-button { width: 44px; height: 44px; }
-  .player-right { grid-column: 3; grid-row: 1; display: flex; }
-  .player-right input, .player-right > svg { display: none; }
-  .queue-button { margin-left: 0; width: 40px; height: 40px; }
+  .control-buttons { grid-column: 2; grid-row: 1; gap: 0; align-items: center; }
+  .control-buttons .play-button {
+    width: 50px; height: 50px;
+    box-shadow: 0 10px 24px #a8c72e70, inset 0 1px 0 #ffffff88;
+  }
+  .control-buttons .play-button:active { transform: scale(.94); }
+  .player-right { display: none; }
   .progress {
     position: static; grid-column: 1 / -1; grid-row: 2;
-    display: flex; margin-top: 10px;
+    display: flex; align-items: center; margin-top: 10px;
   }
   .progress span { display: none; }
-  .progress-range { height: 4px; }
-  .progress-range::-webkit-slider-thumb { width: 12px; height: 12px; border-width: 2px; }
+  .progress-range { height: 5px; background: #e7ddc8; }
+  .progress-range::-webkit-slider-thumb { width: 15px; height: 15px; border: 3px solid #fff; background: var(--ink); box-shadow: 0 2px 6px #0005; }
+  .progress-range::-moz-range-thumb { width: 11px; height: 11px; border: 3px solid #fff; background: var(--ink); }
   .playlist-modal, .create-modal { border-radius: 18px; }
   .playlist-modal { max-height: calc(100vh - 28px); }
   .modal-header { padding: 19px 18px 14px; }
@@ -526,6 +543,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   }
   .mobile-tabs button { border-radius: 16px; padding: 7px 0 5px; }
   .mobile-tabs button.active { background: var(--wash); }
-  .modal-backdrop, .confirm-backdrop { padding: 14px; align-items: end; }
+  .modal-backdrop, .confirm-backdrop { padding: 14px; align-items: center; }
   .playlist-modal, .create-modal, .confirm-card { border-radius: 26px 26px 22px 22px; width: 100%; }
 }
