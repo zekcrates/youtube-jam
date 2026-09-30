@@ -412,8 +412,8 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .player-right input, .player-right > svg { display: none; }
   .queue-button { margin-left: 0; width: 40px; height: 40px; }
   .progress {
-    position: absolute; top: -2px; left: 16px; right: 16px;
-    margin-top: 0;
+    position: static; grid-column: 1 / -1; grid-row: 2;
+    display: flex; margin-top: 10px;
   }
   .progress span { display: none; }
   .progress-range { height: 4px; }
@@ -501,4 +501,31 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* Tabs replace the hamburger drawer — keep it buried. */
 @media (max-width: 650px) {
   .mobile-menu-button { display: none; }
+}
+
+/* Mobile polish pass: curvy minimalist. Desktop untouched. */
+@media (max-width: 650px) {
+  .main-content { padding: 18px 14px 248px; }
+  .search-wrap { border-radius: 22px; height: 52px; }
+  .track-card { border-radius: 22px; box-shadow: 0 8px 22px #3a2f1a0e; }
+  .cover-wrap { border-radius: 15px; }
+  .chip { border-radius: 100px; padding: 10px 18px; box-shadow: 0 3px 10px #3a2f1a0a; }
+  .ad-banner { border-radius: 20px; }
+  .player {
+    border-radius: 26px;
+    width: calc(100% - 20px);
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    box-shadow: 0 22px 60px #3a2f1a2b;
+  }
+  .control-buttons .play-button { box-shadow: 0 8px 20px #a8c72e66; }
+  .mobile-tabs {
+    left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom));
+    border: 1px solid var(--line); border-radius: 26px;
+    box-shadow: 0 16px 44px #3a2f1a22;
+    padding: 10px 8px;
+  }
+  .mobile-tabs button { border-radius: 16px; padding: 7px 0 5px; }
+  .mobile-tabs button.active { background: var(--wash); }
+  .modal-backdrop, .confirm-backdrop { padding: 14px; align-items: end; }
+  .playlist-modal, .create-modal, .confirm-card { border-radius: 26px 26px 22px 22px; width: 100%; }
 }
