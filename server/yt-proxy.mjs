@@ -157,8 +157,9 @@ const server = http.createServer(app);
 // --- Jam sync: tiny room hub. Clients share videoId + position, never stream URLs
 // (URLs are IP-bound + expiring, each side resolves its own via /api/stream).
 const rooms = new Map(); // code -> { members: Map<ws, name>, state: object|null }
+const normalizeRoom = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 const cleanRoom = (code) => {
-  const name = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'JAM';
+  const name = normalizeRoom(code) || 'JAM';
   if (!rooms.has(name)) rooms.set(name, { members: new Map(), state: null });
   return name;
 };
@@ -181,7 +182,16 @@ wss.on('connection', (ws) => {
     try { msg = JSON.parse(String(raw)); } catch { return; }
     if (msg.t === 'join' && msg.room) {
       if (room) rooms.get(room)?.members.delete(ws);
-      room = cleanRoom(msg.room);
+      const wanted = normalizeRoom(msg.room);
+      if (!wanted) { ws.send(JSON.stringify({ t: 'error', message: 'Enter the room code first.' })); room = null; return; }
+      // Joining needs an existing room (typos shouldn't strand you alone).
+      // Only explicit creates may open a new one.
+      if (!msg.create && !rooms.has(wanted)) {
+        ws.send(JSON.stringify({ t: 'error', message: `No jam with code ${wanted} — check the code and try again.` }));
+        room = null;
+        return;
+      }
+      room = cleanRoom(wanted);
       name = String(msg.name || 'guest').slice(0, 24) || 'guest';
       rooms.get(room).members.set(ws, name);
       ws.send(JSON.stringify({ t: 'joined', room, members: roomMembers(room), state: rooms.get(room).state }));
