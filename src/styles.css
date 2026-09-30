@@ -176,7 +176,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* Toasts: little confirmations floating above the player. */
 .toasts {
   position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: 118px; z-index: 30;
+  top: 92px; z-index: 30;
   display: grid; gap: 8px; justify-items: center;
   width: min(380px, calc(100vw - 32px)); pointer-events: none;
 }
@@ -194,7 +194,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .toast span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 @keyframes toastin { from { transform: translateY(10px); opacity: 0; } }
 @media (max-width: 650px) {
-  .toasts { bottom: calc(196px + env(safe-area-inset-bottom)); }
+  .toasts { top: 84px; }
 }
 .track-card:after { content: '•••'; grid-column: 4; grid-row: 1; color: #d3ccbd; letter-spacing: 2px; font-size: 12px; }
 
@@ -490,7 +490,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   /* Drawer retired on phones — tabs + chips replace it. */
   .mobile-menu-button { display: none; }
   .jam-pill {
-    display: inline-flex; align-items: center; gap: 6px;
+    display: none;
     margin-left: auto; padding: 7px 11px; border-radius: 100px;
     background: var(--ink); color: #faf8f4;
     font-family: 'DM Mono'; font-size: 10px; letter-spacing: .08em;
