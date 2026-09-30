@@ -86,6 +86,20 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .search-wrap kbd { font-family: 'DM Mono'; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 9px; color: var(--faint); white-space: nowrap; background: var(--wash); }
 .clear-search { color: var(--muted); display: grid; }
 .clear-search:hover { color: var(--ink); }
+.suggest-list {
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 6;
+  padding: 6px; border: 1px solid var(--line); border-radius: 16px;
+  background: var(--card); box-shadow: 0 18px 50px #3a2f1a22;
+  animation: pop .15s ease-out;
+}
+.suggest-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; border-radius: 10px; text-align: left;
+  font-size: 13px; font-weight: 600; color: #5c574a;
+}
+.suggest-list button span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.suggest-list button svg { flex: none; color: var(--faint); }
+.suggest-list button.active { background: var(--lime-wash); color: var(--ink); }
 .icon-button { color: var(--muted); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; }
 .icon-button:hover { background: var(--wash); color: var(--ink); }
 
@@ -303,6 +317,23 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* App-only chrome (bottom tabs, chips, jam pill) — mobile only. */
 .mobile-tabs, .lib-chips, .jam-pill { display: none; }
 .mobile-home-heading { display: none; }
+.app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: #f8f3e8;
+  background: radial-gradient(circle at 50% 18%, #3a4426 0, transparent 38%), #151811;
+  animation: splash-fade .38s ease 1.2s forwards;
+}
+.splash-inner { width: min(410px, 100%); text-align: center; }
+.splash-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 42px; font-size: 21px; font-weight: 800; letter-spacing: -.06em; }
+.splash-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; color: #1c220e; background: var(--lime); box-shadow: 0 6px 24px #c5ef544d; }
+.splash-inner blockquote { margin: 0; font-family: Georgia, serif; font-size: clamp(20px, 4vw, 28px); line-height: 1.27; letter-spacing: -.035em; }
+.splash-inner cite { display: block; margin-top: 25px; color: #aeb59c; font-family: 'DM Mono'; font-size: 9px; font-style: normal; letter-spacing: .16em; text-transform: uppercase; }
+@keyframes splash-fade { to { opacity: 0; visibility: hidden; } }
 
 @media (max-width: 1000px) {
   .app-shell { display: block; }

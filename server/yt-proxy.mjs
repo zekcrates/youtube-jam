@@ -302,6 +302,15 @@ app.get('/api/room/:code', (req, res) => {
   res.json({ room: code, members: r ? roomMembers(code) : [], hasState: !!r?.state });
 });
 
+app.get('/api/suggest', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ suggestions: [] });
+    const s = await (await getYt()).getSearchSuggestions(q);
+    res.json({ suggestions: (Array.isArray(s) ? s : []).filter(Boolean).slice(0, 8) });
+  } catch { res.json({ suggestions: [] }); }
+});
+
 // Single-service deploy: serve the built frontend (vite dist) from this same
 // server so /api and /ws stay same-origin wherever it's hosted.
 const here = path.dirname(fileURLToPath(import.meta.url));

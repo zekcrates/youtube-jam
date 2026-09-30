@@ -61,6 +61,7 @@ const formatTime = (ms = 0) => `${Math.floor(ms / 60000)}:${String(Math.floor((m
 const formatSeconds = (seconds = 0) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true)
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState(starterTracks)
   const [playlist, setPlaylist] = useState([])
@@ -86,6 +87,10 @@ function App() {
   const [addTarget, setAddTarget] = useState(null)
   const [adInfo, setAdInfo] = useState(null)
   const [toasts, setToasts] = useState([])
+  const [suggest, setSuggest] = useState([])
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const [suggestIdx, setSuggestIdx] = useState(-1)
+  const suggestTimer = useRef(null)
   const toastId = useRef(0)
   const pushToast = (msg, kind = 'ok') => {
     const id = ++toastId.current
@@ -116,6 +121,11 @@ function App() {
   currentRef.current = current
   const jamConnected = !!jamRoom
   jamRoomRef.current = jamRoom
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 1650)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Browsers block sound until the user has tapped something. If a remote
   // play leaves the embed stuck silent, say so instead of faking playback.
@@ -348,6 +358,23 @@ function App() {
     } catch {}
   }, [adInfo])
 
+  const fetchSuggest = (value) => {
+    clearTimeout(suggestTimer.current)
+    const v = String(value || '').trim()
+    if (v.length < 2) { setSuggest([]); setSuggestOpen(false); return }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(api(`/api/suggest?q=${encodeURIComponent(v)}`))
+        if (!r.ok) return
+        const d = await r.json()
+        setSuggest(d.suggestions || [])
+        setSuggestOpen((d.suggestions || []).length > 0)
+        setSuggestIdx(-1)
+      } catch {}
+    }, 250)
+  }
+  const pickSuggest = (value) => { setSuggestOpen(false); setSuggest([]); search(value) }
+
   const search = async (value = query) => {
     setQuery(value)
     if (!value.trim()) { setTracks(starterTracks); setSearchError(''); return }
@@ -405,9 +432,46 @@ function App() {
     if (currentRef.current.youtubeId && ytRef.current.ready) ytExec({ type: 'seek', pos: nextTime })
     else if (audioRef.current) audioRef.current.currentTime = nextTime
     setCurrentTime(nextTime)
+    try { navigator.mediaSession?.setPositionState?.({ duration: duration || 0, playbackRate: 1, position: Math.min(nextTime, duration || 0) }) } catch {}
     if (jamRoom) setTimeout(() => broadcastJam({ position: nextTime }), 50)
   }
   const skipBy = (seconds) => seekTo(Math.max(0, Math.min(duration || 0, getPosition() + seconds)))
+  const stepTrack = (dir) => {
+    const list = tracks.length ? tracks : [current]
+    const i = list.findIndex((t) => t.trackId === current.trackId)
+    const next = list[(i + dir + list.length) % list.length]
+    if (next) togglePlay(next)
+  }
+
+  // Lockscreen / notification controls (Media Session API).
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: current.trackName || 'jam',
+        artist: current.artistName || '',
+        album: current.collectionName || '',
+        artwork: current.artworkUrl100 ? [{ src: current.artworkUrl100, sizes: '512x512' }] : [],
+      })
+    } catch {}
+  }, [current])
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    const ms = navigator.mediaSession
+    try {
+      ms.setActionHandler('play', () => togglePlay(currentRef.current))
+      ms.setActionHandler('pause', () => { if (playing) togglePlay(currentRef.current) })
+      ms.setActionHandler('previoustrack', () => stepTrack(-1))
+      ms.setActionHandler('nexttrack', () => stepTrack(1))
+      ms.setActionHandler('seekbackward', () => skipBy(-10))
+      ms.setActionHandler('seekforward', () => skipBy(10))
+      ms.setActionHandler('seekto', (d) => { if (d && typeof d.seekTime === 'number') seekTo(d.seekTime) })
+    } catch {}
+  }, [current, playing, tracks])
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !playing) return
+    try { navigator.mediaSession.setPositionState?.({ duration: duration || 0, playbackRate: 1, position: Math.min(currentTime, duration || 0) }) } catch {}
+  }, [currentTime, duration, playing])
   const isLiked = (track) => liked.some((song) => song.trackId === track.trackId)
   const toggleLike = (track) => {
     const has = liked.some((song) => song.trackId === track.trackId)
@@ -475,6 +539,7 @@ function App() {
   }
 
   return <div className="app-shell">
+    {showSplash && <div className="app-splash" role="status" aria-label="Loading abyss"><div className="splash-inner"><div className="splash-brand"><span className="splash-mark"><Sparkles size={18} /></span><span>abyss</span></div><blockquote>“And if you gaze long into an abyss, the abyss also gazes into you.”</blockquote></div></div>}
     <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
       <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><Sparkles size={16} /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => setShowJam(true)}><span className="live-dot" />{jamRoom}</button>}</div>
       <div className="nav-label">YOUR LIBRARY</div>
@@ -493,7 +558,12 @@ function App() {
 
     <main className="main-content">
       {!query && activeTab !== 'Library' && <div className="mobile-home-heading"><h1>Find your next <em>favorite.</em></h1></div>}
-      <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { const value = e.target.value; setQuery(value); if (value) setTracks([]); else search('') }} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}</div></header>
+      <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { const value = e.target.value; setQuery(value); fetchSuggest(value); if (value) setTracks([]); else search('') }} onKeyDown={(e) => {
+        if (e.key === 'ArrowDown' && suggestOpen) { e.preventDefault(); setSuggestIdx((i) => (i + 1) % suggest.length) }
+        else if (e.key === 'ArrowUp' && suggestOpen) { e.preventDefault(); setSuggestIdx((i) => (i - 1 + suggest.length) % suggest.length) }
+        else if (e.key === 'Enter') { if (suggestOpen && suggestIdx >= 0 && suggest[suggestIdx]) pickSuggest(suggest[suggestIdx]); else { setSuggestOpen(false); search() } }
+        else if (e.key === 'Escape') { setSuggestOpen(false); setSuggest([]) }
+      }} onBlur={() => setTimeout(() => setSuggestOpen(false), 150)} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}{suggestOpen && !!suggest.length && <div className="suggest-list">{suggest.map((s, i) => <button key={s} className={i === suggestIdx ? 'active' : ''} onMouseDown={(e) => { e.preventDefault(); pickSuggest(s) }} onMouseEnter={() => setSuggestIdx(i)}><Search size={14}/><span>{s}</span></button>)}</div>}</div></header>
       <section className={`welcome-row ${activeTab === 'Library' ? '' : 'home-welcome'}`}><div><h1>{activeTab === 'Library' ? selectedPlaylist === 'local' ? 'Local songs' : <>{selectedPlaylist === 'liked' ? 'Liked Songs' : playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && selectedPlaylist !== 'local' && <p>{selectedPlaylist === 'liked' ? 'Every song you’ve hearted, in one place.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
       {activeTab === 'Library' && <div className="lib-chips">
         <button className={`chip ${selectedPlaylist === 'local' ? 'active' : ''}`} onClick={() => openPlaylist('local')}>Local</button>
