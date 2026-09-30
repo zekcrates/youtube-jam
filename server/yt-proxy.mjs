@@ -30,8 +30,11 @@ let yt = null;
 async function getYt() {
   if (!yt) {
     console.log('[yt] creating Innertube session...');
-    yt = await Innertube.create({});
-    console.log('[yt] session ready');
+    // YT_COOKIE: paste a logged-in youtube.com cookie header (Render env var).
+    // Datacenter IPs get "Sign in to confirm you're not a bot" on player
+    // requests; an authenticated session bypasses that check.
+    yt = await Innertube.create(process.env.YT_COOKIE ? { cookie: process.env.YT_COOKIE } : {});
+    console.log(`[yt] session ready${process.env.YT_COOKIE ? ' (authenticated)' : ''}`);
   }
   return yt;
 }
