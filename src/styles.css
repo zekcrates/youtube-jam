@@ -326,13 +326,14 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   padding: 28px;
   color: #f8f3e8;
   background: radial-gradient(circle at 50% 18%, #3a4426 0, transparent 38%), #151811;
-  animation: splash-fade .38s ease 1.2s forwards;
+  animation: splash-fade .45s ease 1.95s forwards;
 }
 .splash-inner { width: min(410px, 100%); text-align: center; }
-.splash-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 42px; font-size: 21px; font-weight: 800; letter-spacing: -.06em; }
+.splash-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 42px; font-size: 21px; font-weight: 800; letter-spacing: -.06em; animation: splash-in .5s ease both; }
 .splash-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; color: #1c220e; background: var(--lime); box-shadow: 0 6px 24px #c5ef544d; }
-.splash-inner blockquote { margin: 0; font-family: Georgia, serif; font-size: clamp(20px, 4vw, 28px); line-height: 1.27; letter-spacing: -.035em; }
-.splash-inner cite { display: block; margin-top: 25px; color: #aeb59c; font-family: 'DM Mono'; font-size: 9px; font-style: normal; letter-spacing: .16em; text-transform: uppercase; }
+.splash-inner blockquote { margin: 0; font-family: Georgia, serif; font-size: clamp(20px, 4vw, 28px); line-height: 1.27; letter-spacing: -.035em; animation: splash-in .65s ease .5s both; }
+.splash-inner cite { display: block; margin-top: 25px; color: #aeb59c; font-family: 'DM Mono'; font-size: 9px; font-style: normal; letter-spacing: .16em; text-transform: uppercase; animation: splash-in .65s ease .9s both; }
+@keyframes splash-in { from { opacity: 0; transform: translateY(12px); } }
 @keyframes splash-fade { to { opacity: 0; visibility: hidden; } }
 
 @media (max-width: 1000px) {

@@ -123,7 +123,7 @@ function App() {
   jamRoomRef.current = jamRoom
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 1650)
+    const timer = setTimeout(() => setShowSplash(false), 2400)
     return () => clearTimeout(timer)
   }, [])
 
@@ -539,7 +539,7 @@ function App() {
   }
 
   return <div className="app-shell">
-    {showSplash && <div className="app-splash" role="status" aria-label="Loading abyss"><div className="splash-inner"><div className="splash-brand"><span className="splash-mark"><Sparkles size={18} /></span><span>abyss</span></div><blockquote>“And if you gaze long into an abyss, the abyss also gazes into you.”</blockquote></div></div>}
+    {showSplash && <div className="app-splash" role="status" aria-label="Loading abyss"><div className="splash-inner"><div className="splash-brand"><span className="splash-mark"><Sparkles size={18} /></span><span>abyss</span></div><blockquote>“And if you gaze long into an abyss, the abyss also gazes into you.”</blockquote><cite>Beyond Good and Evil · Nietzsche</cite></div></div>}
     <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
       <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><Sparkles size={16} /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => setShowJam(true)}><span className="live-dot" />{jamRoom}</button>}</div>
       <div className="nav-label">YOUR LIBRARY</div>
