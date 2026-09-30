@@ -98,6 +98,8 @@ function App() {
   const [jamMembers, setJamMembers] = useState([])
   const [jamStatus, setJamStatus] = useState('')
   const audioRef = useRef(null)
+  const ytRef = useRef({ player: null, ready: false, videoId: null })
+  const pendingRef = useRef(null)
   const wsRef = useRef(null)
   const applyingRef = useRef(false)
   const jamRoomRef = useRef('')
@@ -126,7 +128,80 @@ function App() {
     }
   }, [current.trackTimeMillis])
 
-  // --- Jam sync (rooms share videoId + position, each side streams its own audio)
+  // --- Hidden YouTube embed engine (official player: never bot-blocked).
+  // Local files (no youtubeId) keep using the <audio> element.
+  const ytExec = (a) => {
+    const slot = ytRef.current
+    if (!slot.ready || !slot.player) { if (a.type === 'load') pendingRef.current = a; return }
+    try {
+      const p = slot.player
+      if (a.type === 'load') {
+        slot.videoId = a.videoId
+        if (a.play) p.loadVideoById({ videoId: a.videoId, startSeconds: Math.max(0, a.pos || 0) })
+        else p.cueVideoById({ videoId: a.videoId, startSeconds: Math.max(0, a.pos || 0) })
+      }
+      else if (a.type === 'play') p.playVideo()
+      else if (a.type === 'pause') p.pauseVideo()
+      else if (a.type === 'seek') p.seekTo(Math.max(0, a.pos || 0), true)
+      else if (a.type === 'stop' && slot.videoId) { p.stopVideo(); slot.videoId = null }
+    } catch {}
+  }
+  const getPosition = () => {
+    if (currentRef.current.youtubeId && ytRef.current.ready && ytRef.current.videoId) {
+      try { const t = ytRef.current.player.getCurrentTime(); if (typeof t === 'number' && !Number.isNaN(t)) return t } catch {}
+    }
+    return audioRef.current?.currentTime || 0
+  }
+  const playTrackAt = (track, pos, shouldPlay) => {
+    setCurrent(track); setCurrentTime(pos); setDuration(track.trackTimeMillis / 1000 || 0)
+    if (track.youtubeId) {
+      try { audioRef.current?.pause() } catch {}
+      setPlaying(shouldPlay)
+      ytExec({ type: 'load', videoId: track.youtubeId, pos, play: shouldPlay })
+    } else {
+      ytExec({ type: 'stop' })
+      const a = audioRef.current
+      a.src = track.streamUrl || track.previewUrl
+      a.currentTime = Math.max(0, pos)
+      if (shouldPlay) a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      else { a.pause(); setPlaying(false) }
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    const create = () => {
+      if (cancelled || ytRef.current.player || !window.YT?.Player) return
+      try {
+        ytRef.current.player = new window.YT.Player('jam-yt-player', {
+          height: '2', width: '2',
+          playerVars: { controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3, rel: 0 },
+          events: {
+            onReady: () => { ytRef.current.ready = true; if (pendingRef.current && !cancelled) { const p = pendingRef.current; pendingRef.current = null; ytExec(p) } },
+            onStateChange: (e) => {
+              const st = window.YT?.PlayerState
+              if (!st) return
+              if (e.data === st.PLAYING) { setPlaying(true); try { const d = ytRef.current.player.getDuration(); if (d) setDuration(d) } catch {} }
+              else if (e.data === st.PAUSED) setPlaying(false)
+              else if (e.data === st.ENDED) { setPlaying(false); setCurrentTime(0) }
+            },
+            onError: () => { setPlaying(false); setSearchError('This song can’t play here — the owner disabled embedding. Pick another.') },
+          },
+        })
+      } catch {}
+    }
+    if (window.YT?.Player) create()
+    else {
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      const prev = window.onYouTubeIframeAPIReady
+      window.onYouTubeIframeAPIReady = () => { if (typeof prev === 'function') prev(); create() }
+      document.head.appendChild(tag)
+    }
+    return () => { cancelled = true }
+  }, [])
+
+  // --- Jam sync (rooms share videoId + position, each side plays its own copy)
   const broadcastJam = (over = {}) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== 1 || !jamRoomRef.current || applyingRef.current) return
@@ -136,7 +211,7 @@ function App() {
       state: {
         videoId: over.videoId ?? (current.youtubeId || null),
         track: over.track ?? current,
-        position: over.position ?? (audioRef.current?.currentTime || 0),
+        position: over.position ?? getPosition(),
         playing: over.playing ?? playing,
       },
     }))
@@ -148,17 +223,28 @@ function App() {
     const pos = state.position + (state.playing ? Math.max(0, (Date.now() - (state.at || Date.now())) / 1000) : 0)
     setTracks((old) => old.some((t) => t.trackId === state.track.trackId) ? old : [state.track, ...old])
     if (currentRef.current.trackId !== state.track.trackId) {
-      setCurrent(state.track); setCurrentTime(pos); setDuration(state.track.trackTimeMillis / 1000 || 0)
-      const audio = audioRef.current
-      audio.src = state.track.previewUrl
-      audio.currentTime = Math.max(0, pos - 0.2)
-      if (state.playing) audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
-      else { audio.pause(); setPlaying(false) }
+      playTrackAt(state.track, pos, state.playing)
     } else {
-      const audio = audioRef.current
-      if (Math.abs((audio.currentTime || 0) - pos) > 1.5) { audio.currentTime = Math.max(0, pos - 0.2); setCurrentTime(audio.currentTime) }
-      if (state.playing && audio.paused) audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
-      if (!state.playing && !audio.paused) { audio.pause(); setPlaying(false) }
+      if (Math.abs(getPosition() - pos) > 1.5) {
+        const fixed = Math.max(0, pos - 0.2)
+        if (state.track.youtubeId && ytRef.current.ready) ytExec({ type: 'seek', pos: fixed })
+        else if (audioRef.current) audioRef.current.currentTime = fixed
+        setCurrentTime(fixed)
+      }
+      let paused = true
+      if (state.track.youtubeId && ytRef.current.ready && window.YT?.PlayerState) {
+        try { paused = ytRef.current.player.getPlayerState() !== window.YT.PlayerState.PLAYING } catch {}
+      } else paused = audioRef.current?.paused ?? true
+      if (state.playing && paused) {
+        setPlaying(true)
+        if (state.track.youtubeId) ytExec({ type: 'play' })
+        else audioRef.current?.play()?.then(() => setPlaying(true)).catch(() => setPlaying(false))
+      }
+      if (!state.playing && !paused) {
+        setPlaying(false)
+        if (state.track.youtubeId) ytExec({ type: 'pause' })
+        else audioRef.current?.pause()
+      }
     }
     setJamStatus(`${state.by || 'friend'} ${state.playing ? '▶' : '⏸'} ${state.track.trackName}`)
     setTimeout(() => { applyingRef.current = false }, 300)
@@ -197,6 +283,14 @@ function App() {
     return () => clearInterval(id)
   }, [jamRoom, playing]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => wsRef.current?.close(), [])
+  // Embed progress has no timeupdate events — poll while a YouTube track plays.
+  useEffect(() => {
+    if (!playing || !current.youtubeId) return
+    const id = setInterval(() => {
+      try { const t = ytRef.current.player?.getCurrentTime(); if (typeof t === 'number' && !Number.isNaN(t)) setCurrentTime(t) } catch {}
+    }, 500)
+    return () => clearInterval(id)
+  }, [playing, current])
 
   const search = async (value = query) => {
     setQuery(value)
@@ -230,7 +324,15 @@ function App() {
   }
 
   const togglePlay = (track = current) => {
-    if (!track?.previewUrl && !track?.streamUrl) return
+    if (!track) return
+    if (track.youtubeId) {
+      if (current.trackId !== track.trackId || ytRef.current.videoId !== track.youtubeId) playTrackAt(track, 0, true)
+      else if (playing) { setPlaying(false); ytExec({ type: 'pause' }) }
+      else { setPlaying(true); ytExec({ type: 'play' }) }
+      return
+    }
+    if (!track.previewUrl && !track.streamUrl) return
+    ytExec({ type: 'stop' })
     if (current.trackId !== track.trackId) {
       setCurrent(track); setCurrentTime(0); setDuration(track.trackTimeMillis / 1000 || 0)
       audioRef.current.src = track.streamUrl || track.previewUrl
@@ -242,8 +344,14 @@ function App() {
     if (playing) { audioRef.current.pause(); setPlaying(false) }
     else { audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) }
   }
-  const seekTo = (value) => { const nextTime = Number(value); audioRef.current.currentTime = nextTime; setCurrentTime(nextTime); if (jamRoom) setTimeout(() => broadcastJam({ position: nextTime }), 50) }
-  const skipBy = (seconds) => seekTo(Math.max(0, Math.min(duration || 0, (audioRef.current.currentTime || 0) + seconds)))
+  const seekTo = (value) => {
+    const nextTime = Number(value)
+    if (currentRef.current.youtubeId && ytRef.current.ready) ytExec({ type: 'seek', pos: nextTime })
+    else if (audioRef.current) audioRef.current.currentTime = nextTime
+    setCurrentTime(nextTime)
+    if (jamRoom) setTimeout(() => broadcastJam({ position: nextTime }), 50)
+  }
+  const skipBy = (seconds) => seekTo(Math.max(0, Math.min(duration || 0, getPosition() + seconds)))
   const isLiked = (track) => liked.some((song) => song.trackId === track.trackId)
   const toggleLike = (track) => setLiked((old) => old.some((song) => song.trackId === track.trackId) ? old.filter((song) => song.trackId !== track.trackId) : [...old, track])
   const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my' && selectedPlaylist !== 'liked'
@@ -328,7 +436,8 @@ function App() {
             }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
-    <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={17} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { audioRef.current.volume = Number(e.target.value) }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
+    <div aria-hidden="true" style={{ position: 'fixed', width: 2, height: 2, left: -10, top: -10, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}><div id="jam-yt-player" /></div>
+    <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={17} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.volume = v; try { ytRef.current.player?.setVolume(Math.round(v * 100)) } catch {} }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
     {showPlaylist && <div className="modal-backdrop" onClick={() => setShowPlaylist(false)}><section className="playlist-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">YOUR LIBRARY</div><h2>My playlist <span>{playlist.length}</span></h2></div><button className="icon-button" onClick={() => setShowPlaylist(false)}><X size={20}/></button></div><div className="modal-list">{!playlist.length && <div className="empty" style={{ margin: 12 }}>Nothing here yet — hit + on any song to add it.</div>}{playlist.map((track, i) => <div className="modal-track" key={track.trackId}><span className="track-number">{String(i + 1).padStart(2, '0')}</span><img src={track.artworkUrl100}/><div className="modal-copy"><strong>{track.trackName}</strong></div><button onClick={() => togglePlay(track)}>{playing && current.trackId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor"/>}</button><button className="remove-button" onClick={() => requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: 'my' })}><Trash2 size={15}/></button></div>)}</div><div className="modal-footer"><button className="primary-button small" onClick={() => { setShowPlaylist(false); document.querySelector('.search-wrap input')?.focus() }}><Plus size={15}/> Add songs</button></div></section></div>}
     {confirmDelete && <div className="confirm-backdrop" onClick={() => setConfirmDelete(null)}><section className="confirm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}><div className="confirm-icon"><Trash2 size={19}/></div><div><h2>{confirmDelete.kind === 'playlist' ? 'Delete this playlist?' : 'Remove this song?'}</h2><p>{confirmDelete.kind === 'playlist' ? `“${confirmDelete.label}” and its songs will be removed.` : `Remove “${confirmDelete.label}” from this playlist?`}</p></div><div className="confirm-actions"><button className="text-button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" onClick={confirmRemoval}>Delete</button></div></section></div>}
     {addTarget && <div className="modal-backdrop" onClick={() => setAddTarget(null)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">ADD TO PLAYLIST</div><h2 className="pick-title">{addTarget.trackName}</h2></div><button className="icon-button" onClick={() => setAddTarget(null)}><X size={20}/></button></div><div className="create-body"><div className="pick-list"><button className="pick-item" onClick={() => addTrackTo('my', addTarget)}><span><ListMusic size={16}/> My playlist</span><small>{playlist.length}</small></button>{playlists.map((p) => <button key={p.id} className="pick-item" onClick={() => addTrackTo(p.id, addTarget)}><span><Album size={16}/> {p.name}</span><small>{p.tracks.length}</small></button>)}</div></div></section></div>}
