@@ -292,7 +292,6 @@ function App() {
         else audioRef.current?.pause()
       }
     }
-    setJamStatus(`${state.by || 'friend'} ${state.playing ? '▶' : '⏸'} ${state.track.trackName}`)
     setTimeout(() => { applyingRef.current = false }, 300)
   }
 
@@ -575,6 +574,7 @@ function App() {
     : selectedPlaylist === 'liked'
       ? liked
       : playlists.find((item) => item.id === selectedPlaylist)?.tracks || playlist
+  const displayedTracks = activeTab === 'Library' ? selectedLibraryTracks : tracks
   const openPlaylist = (id) => { setSelectedPlaylist(id); setActiveTab('Library'); setTracks(id === 'local' ? localTracks : id === 'liked' ? liked : playlists.find((item) => item.id === id)?.tracks || playlist) }
   const createPlaylist = () => {
     const name = newPlaylistName.trim()
@@ -631,13 +631,13 @@ function App() {
         <button className="chip new" onClick={() => setShowCreatePlaylist(true)} aria-label="New playlist"><Plus size={14}/></button>
       </div>}
       <section className={`section-head ${!query && activeTab !== 'Library' ? 'home-section-head' : ''}`}><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} song${selectedLibraryTracks.length === 1 ? '' : 's'}` : 'Made for this moment'}</h3>{activeTab === 'Library' && !query && <p>Your saved music, ready whenever you are.</p>}</div></section>
-      <section className={`track-grid ${!query && activeTab !== 'Library' ? 'home-track-grid' : ''}`}>{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
+      <section className={`track-grid ${!query && activeTab !== 'Library' ? 'home-track-grid' : ''}`}>{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : displayedTracks.slice(0, activeTab === 'Library' ? displayedTracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
               if (isInTarget(track)) {
                 if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
                 else toggleTrack(track)
               } else if (viewingCustom) toggleTrack(track)
               else setAddTarget(track)
-            }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
+            }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !displayedTracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
     <div className={adInfo ? 'ad-holder' : 'yt-holder'} aria-hidden={!adInfo}>
@@ -673,7 +673,7 @@ function App() {
 }
 
 function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge > 0 && <small>{badge}</small>}</button> }
-function TrackCard({ track, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap" onClick={onPlay} role="button" aria-label={playing && current.trackId === track.trackId ? 'Pause' : 'Play'} title={playing && current.trackId === track.trackId ? 'Pause' : 'Play'}><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/>{playing && current.trackId === track.trackId && <span className="playing-bars"><i /><i /><i /></span>}</div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={isLiked ? 'liked' : ''} onClick={onLike} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
+function TrackCard({ track, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap" onClick={onPlay} role="button" aria-label={playing && current.trackId === track.trackId ? 'Pause' : 'Play'} title={playing && current.trackId === track.trackId ? 'Pause' : 'Play'}><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/>{playing && current.trackId === track.trackId && <span className="playing-bars"><i /><i /><i /></span>}</div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><button className={isLiked ? 'liked' : ''} onClick={(event) => { event.stopPropagation(); onLike() }} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={(event) => { event.stopPropagation(); onAdd() }} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
 
 createRoot(document.getElementById('root')).render(<App />)
 
