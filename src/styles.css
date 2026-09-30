@@ -44,6 +44,7 @@ img { display: block; }
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; letter-spacing: -.06em; padding: 0 12px 30px; }
 .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--lime); color: #1c220e; box-shadow: 0 4px 12px #c5ef5466; }
+.brand-mark img, .splash-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
 .nav-group { display: grid; gap: 4px; }
 .nav-item {
   height: 42px; display: flex; align-items: center; gap: 12px; padding: 0 13px;
@@ -326,7 +327,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   padding: 28px;
   color: #f8f3e8;
   background: radial-gradient(circle at 50% 18%, #3a4426 0, transparent 38%), #151811;
-  animation: splash-fade .45s ease 1.95s forwards;
+  animation: splash-fade .4s ease 1s forwards;
 }
 .splash-inner { width: min(410px, 100%); text-align: center; }
 .splash-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 42px; font-size: 21px; font-weight: 800; letter-spacing: -.06em; animation: splash-in .5s ease both; }
