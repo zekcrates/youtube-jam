@@ -590,13 +590,13 @@ function App() {
       <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><img src="/branding/abyss-a-simple-1.png" alt="" /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => { setShowChat(false); setShowJam(true) }}><span className="live-dot" />{jamRoom}</button>}</div>
       <div className="nav-label">YOUR LIBRARY</div>
       <nav className="nav-group library-nav">
-        <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => { openPlaylist('local'); setMobileNavOpen(false) }} />
-        <NavItem icon={<Heart size={18} />} label="Liked Songs" badge={liked.length} active={selectedPlaylist === 'liked'} onClick={() => { openPlaylist('liked'); setMobileNavOpen(false) }} />
-        <NavItem icon={<ListMusic size={18} />} label="My playlist" badge={playlist.length} onClick={() => { setShowPlaylist(true); setMobileNavOpen(false) }} />
+        <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => { setShowChat(false); openPlaylist('local'); setMobileNavOpen(false) }} />
+        <NavItem icon={<Heart size={18} />} label="Liked Songs" badge={liked.length} active={selectedPlaylist === 'liked'} onClick={() => { setShowChat(false); openPlaylist('liked'); setMobileNavOpen(false) }} />
+        <NavItem icon={<ListMusic size={18} />} label="My playlist" badge={playlist.length} onClick={() => { setShowChat(false); setShowPlaylist(true); setMobileNavOpen(false) }} />
       </nav>
       <div className="nav-label playlist-label"><span>PLAYLISTS</span><button className="add-playlist-button" onClick={() => setShowCreatePlaylist(true)} aria-label="Create playlist"><Plus size={14} /></button></div>
       <nav className="nav-group library-nav">
-        {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => { openPlaylist(item.id); setMobileNavOpen(false) }} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
+        {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => { setShowChat(false); openPlaylist(item.id); setMobileNavOpen(false) }} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
       </nav>
       {jamRoom && <><div className="nav-label chat-label">YOUR JAM</div><nav className="nav-group chat-nav"><NavItem icon={<MessageCircle size={18} />} label="Chat" active={showChat} onClick={() => { setShowChat(true); setShowJam(false); setMobileNavOpen(false) }} /></nav></>}
       <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setShowChat(false); setShowJam(true); setMobileNavOpen(false) }}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 abyss</span><span>v0.1 beta</span></div></div>
@@ -605,8 +605,8 @@ function App() {
 
     <main className={'main-content ' + (showChat && jamRoom ? 'chat-open' : '')}>
       {showChat && jamRoom && <section className="chat-page">
-        <div className="chat-page-header"><div className="chat-title"><div className="chat-room-avatar"><MessageCircle size={19}/></div><div><h1>Room {jamRoom}</h1><span className="chat-presence"><i className="live-dot" /> {jamMembers.length} in this room</span></div></div></div>
         <div className="chat-page-shell">
+          <div className="chat-room-meta"><span className="chat-connected"><i className="live-dot" /> {jamMembers.length} connected</span></div>
           <div className="chat-messages" aria-live="polite">
             {!jamMessages.length && <div className="chat-empty"><MessageCircle size={25}/><strong>Start the conversation</strong><span>Suggest a song, say hi, or decide what plays next.</span></div>}
             {jamMessages.map((message, index) => <div className={message.name === jamName ? 'chat-message-row mine' : 'chat-message-row'} key={message.at || index}><div className="chat-message-stack"><strong className="chat-author">{message.name || 'guest'}</strong><div className="chat-bubble">{message.text}</div>{message.at && <span className="chat-time">{new Date(message.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}</div></div>)}<div ref={chatEndRef} />
@@ -664,8 +664,8 @@ function App() {
       {jamStatus && <p style={{ color: 'var(--muted)', fontSize: 11, marginTop: 14 }}>{jamStatus}</p>}
     </div></section></div>}
     <nav className={`mobile-tabs ${jamRoom ? 'has-chat' : ''}`}>
-      <button className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setActiveTab('Discover'); setQuery(''); search(''); window.scrollTo({ top: 0 }) }}><Home size={22}/><span>Home</span></button>
-      <button className={activeTab === 'Library' ? 'active' : ''} onClick={() => { if (activeTab !== 'Library') openPlaylist('local'); window.scrollTo({ top: 0 }) }}><Library size={22}/><span>Library</span></button>
+      <button className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setShowChat(false); setActiveTab('Discover'); setQuery(''); search(''); window.scrollTo({ top: 0 }) }}><Home size={22}/><span>Home</span></button>
+      <button className={activeTab === 'Library' ? 'active' : ''} onClick={() => { setShowChat(false); if (activeTab !== 'Library') openPlaylist('local'); window.scrollTo({ top: 0 }) }}><Library size={22}/><span>Library</span></button>
       <button className={jamRoom ? 'live' : ''} onClick={() => { setShowChat(false); setShowJam(true) }}><Zap size={22}/><span>Jam</span>{jamRoom && <i className="live-dot" />}</button>
       {jamRoom && <button className={showChat ? 'active' : ''} onClick={() => { setShowChat(true); setShowJam(false) }}><MessageCircle size={22}/><span>Chat</span></button>}
     </nav>

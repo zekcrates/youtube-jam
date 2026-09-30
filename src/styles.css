@@ -314,6 +314,9 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .chat-page-action { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 100px; color: var(--muted); background: var(--card); font-size: 11px; font-weight: 800; transition: border .15s, color .15s, transform .15s; }
 .chat-page-action:hover { border-color: #c9d689; color: var(--lime-deep); transform: translateY(-1px); }
 .chat-page-shell { display: flex; flex: 1; flex-direction: column; width: 100%; height: auto; min-height: 0; overflow: hidden; padding: 18px 18px 16px; border: 1px solid var(--line); border-radius: 24px; background: #fffefa; box-shadow: 0 20px 55px #3a2f1a10; }
+.chat-room-meta { display: flex; justify-content: flex-start; gap: 12px; width: min(760px, 100%); margin: 0 auto; padding: 0 8px 8px; color: var(--muted); font-family: 'DM Mono'; font-size: 9px; letter-spacing: .04em; }
+.chat-connected { display: inline-flex; align-items: center; gap: 6px; }
+.chat-connected .live-dot { width: 6px; height: 6px; margin: 0; }
 .chat-page-shell .chat-messages { flex: 1; width: min(760px, 100%); min-height: 0; max-height: none; margin: 0 auto; padding: 18px 8px 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .chat-page-shell .chat-composer { width: min(760px, 100%); margin: 14px auto 0; }
 .jam-chat { margin-top: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 17px; background: #faf8f1; }
@@ -661,6 +664,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .chat-page-header h1 { font-size: 24px; }
   .chat-page-shell { width: 100%; height: auto; min-height: 0; padding: 10px 10px 12px; border: 1px solid var(--line); border-radius: 22px; }
   .chat-page-shell .chat-messages { width: 100%; min-height: 0; padding: 10px 3px; }
+  .chat-room-meta { width: 100%; padding: 0 3px 5px; }
   .chat-page-shell .chat-composer { width: 100%; }
   .chat-message-row { max-width: 94%; }
   .chat-bubble { padding: 8px 10px; font-size: 11.5px; }
