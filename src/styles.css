@@ -208,8 +208,8 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 
 /* Player — floating light bar */
 .player {
-  position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
-  bottom: 18px; width: min(1060px, calc(100% - 32px));
+  position: fixed; z-index: 5; left: calc(50% + 130px); transform: translateX(-50%);
+  bottom: 18px; width: min(1060px, calc(100% - 292px));
   padding: 12px 20px; border: 1px solid var(--line); border-radius: 20px;
   background: rgba(255, 255, 255, .9); backdrop-filter: blur(18px);
   box-shadow: 0 18px 50px #3a2f1a1f;
@@ -407,6 +407,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .sidebar .nav-label, .sidebar .nav-group, .sidebar-bottom .tiny-label, .sidebar-foot { display: none; }
   .sidebar-bottom { margin-top: 12px; }
   .main-content { padding: 26px 24px 130px; }
+  .player { left: 50%; width: min(1060px, calc(100% - 32px)); }
 }
 @media (max-width: 650px) {
   .main-content { padding: 20px 15px 130px; }
