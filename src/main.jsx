@@ -51,7 +51,7 @@ const forHerTracks = featuredPlaylist.map((t) => ({
   previewUrl: `/api/stream?id=${t.videoId}`,
   trackTimeMillis: (t.durationSec || 0) * 1000,
 }))
-const forHerPlaylist = { id: 'playlist-for-her', name: 'yours', description: 'The whole list, ready to play together', tracks: forHerTracks }
+const forHerPlaylist = { id: 'playlist-for-her', name: 'for her', description: 'The whole list, ready to play together', tracks: forHerTracks }
 
 const formatTime = (ms = 0) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
 const formatSeconds = (seconds = 0) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
@@ -64,16 +64,21 @@ function App() {
     try {
       const s = JSON.parse(localStorage.getItem('muse-playlists') || 'null')
       if (Array.isArray(s) && s.length) {
-        const normalized = s.map((p) => p.id === forHerPlaylist.id ? { ...p, name: 'yours', tracks: p.tracks.map((track) => ({ ...track, collectionName: '' })) } : p)
+        const normalized = s.map((p) => p.id === forHerPlaylist.id ? { ...p, name: 'for her', tracks: p.tracks.map((track) => ({ ...track, collectionName: '' })) } : p)
         return normalized.some((p) => p.id === forHerPlaylist.id) ? normalized : [forHerPlaylist, ...normalized]
       }
     } catch {}
     return [forHerPlaylist]
   })
   const [selectedPlaylist, setSelectedPlaylist] = useState('local')
+  const [liked, setLiked] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem('glass-liked') || 'null'); if (Array.isArray(s)) return s } catch {}
+    return []
+  })
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [addTarget, setAddTarget] = useState(null)
   const [current, setCurrent] = useState(starterTracks[0])
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -99,6 +104,7 @@ function App() {
 
   useEffect(() => localStorage.setItem('muse-playlist', JSON.stringify(playlist)), [playlist])
   useEffect(() => localStorage.setItem('muse-playlists', JSON.stringify(playlists)), [playlists])
+  useEffect(() => localStorage.setItem('glass-liked', JSON.stringify(liked)), [liked])
   useEffect(() => {
     if (!audioRef.current) audioRef.current = new Audio()
     const audio = audioRef.current
@@ -206,7 +212,7 @@ function App() {
         youtubeId: t.videoId,
         trackName: t.title,
         artistName: t.artist,
-        collectionName: t.views ? `YouTube · ${t.views}` : 'YouTube',
+        collectionName: 'YouTube',
         artworkUrl100: t.thumbnail,
         previewUrl: `/api/stream?id=${t.videoId}`,
         trackTimeMillis: (t.durationSec || 0) * 1000,
@@ -233,7 +239,9 @@ function App() {
   }
   const seekTo = (value) => { const nextTime = Number(value); audioRef.current.currentTime = nextTime; setCurrentTime(nextTime); if (jamRoom) setTimeout(() => broadcastJam({ position: nextTime }), 50) }
   const skipBy = (seconds) => seekTo(Math.max(0, Math.min(duration || 0, (audioRef.current.currentTime || 0) + seconds)))
-  const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my'
+  const isLiked = (track) => liked.some((song) => song.trackId === track.trackId)
+  const toggleLike = (track) => setLiked((old) => old.some((song) => song.trackId === track.trackId) ? old.filter((song) => song.trackId !== track.trackId) : [...old, track])
+  const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my' && selectedPlaylist !== 'liked'
   const customViewed = viewingCustom ? playlists.find((item) => item.id === selectedPlaylist) : null
   // The + button always targets what you're looking at: a custom playlist when
   // one is open, otherwise My playlist. Clicking again removes it (toggle).
@@ -252,6 +260,12 @@ function App() {
     setPlaylist((old) => old.some((item) => item.trackId === track.trackId) ? old.filter((item) => item.trackId !== track.trackId) : [...old, track])
   }
   const addToPlaylist = toggleTrack
+  const addTrackTo = (listId, track) => {
+    if (!track) return
+    if (listId === 'my') setPlaylist((old) => old.some((item) => item.trackId === track.trackId) ? old : [...old, track])
+    else setPlaylists((old) => old.map((item) => item.id === listId && !item.tracks.some((song) => song.trackId === track.trackId) ? { ...item, tracks: [...item.tracks, track] } : item))
+    setAddTarget(null)
+  }
   const removeFromPlaylist = (id) => setPlaylist((old) => old.filter((item) => item.trackId !== id))
   const deletePlaylist = (id) => {
     setPlaylists((old) => old.filter((item) => item.id !== id))
@@ -269,8 +283,10 @@ function App() {
   }
   const selectedLibraryTracks = selectedPlaylist === 'local'
     ? localTracks
-    : playlists.find((item) => item.id === selectedPlaylist)?.tracks || playlist
-  const openPlaylist = (id) => { setSelectedPlaylist(id); setActiveTab('Library'); setTracks(id === 'local' ? localTracks : playlists.find((item) => item.id === id)?.tracks || playlist) }
+    : selectedPlaylist === 'liked'
+      ? liked
+      : playlists.find((item) => item.id === selectedPlaylist)?.tracks || playlist
+  const openPlaylist = (id) => { setSelectedPlaylist(id); setActiveTab('Library'); setTracks(id === 'local' ? localTracks : id === 'liked' ? liked : playlists.find((item) => item.id === id)?.tracks || playlist) }
   const createPlaylist = () => {
     const name = newPlaylistName.trim()
     if (!name) return
@@ -280,29 +296,37 @@ function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>glass</span></div>
+      <div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>jam</span></div>
       <div className="nav-label">YOUR LIBRARY</div>
       <nav className="nav-group library-nav">
-        <NavItem icon={<Heart size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => openPlaylist('local')} />
+        <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => openPlaylist('local')} />
+        <NavItem icon={<Heart size={18} />} label="Liked Songs" badge={liked.length} active={selectedPlaylist === 'liked'} onClick={() => openPlaylist('liked')} />
         <NavItem icon={<ListMusic size={18} />} label="My playlist" badge={playlist.length} onClick={() => setShowPlaylist(true)} />
       </nav>
       <div className="nav-label playlist-label"><span>PLAYLISTS</span><button className="add-playlist-button" onClick={() => setShowCreatePlaylist(true)} aria-label="Create playlist"><Plus size={14} /></button></div>
       <nav className="nav-group library-nav">
         {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => openPlaylist(item.id)} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
       </nav>
-      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => setShowJam(true)}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 glass</span><span>v0.1 beta</span></div></div>
+      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => setShowJam(true)}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 jam</span><span>v0.1 beta</span></div></div>
     </aside>
 
     <main className="main-content">
       <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) search('') }} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}</div></header>
-      <section className="welcome-row"><div><h1>{activeTab === 'Library' ? <>{playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && <p>{selectedPlaylist === 'local' ? 'Music available in this project.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
-      <section className="section-head"><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} songs` : 'Made for this moment'}</h3><p>{query ? 'Pick a track to preview or add to your playlist.' : activeTab === 'Library' ? 'Your saved music, ready whenever you are.' : 'A few places to start your listening journey.'}</p></div>{query && <button className="text-button" onClick={() => search('')}>Clear search</button>}</section>
-      <section className="track-grid">{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => (viewingCustom && isInTarget(track) ? requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist }) : toggleTrack(track))} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
+      <section className="welcome-row"><div><h1>{activeTab === 'Library' ? <>{selectedPlaylist === 'liked' ? 'Liked Songs' : playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && <p>{selectedPlaylist === 'local' ? 'Music available in this project.' : selectedPlaylist === 'liked' ? 'Every song you’ve hearted, in one place.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
+      <section className="section-head"><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} songs` : 'Made for this moment'}</h3>{(query || activeTab === 'Library') && <p>{query ? 'Pick a track to preview or add to your playlist.' : 'Your saved music, ready whenever you are.'}</p>}</div>{query && <button className="text-button" onClick={() => search('')}>Clear search</button>}</section>
+      <section className="track-grid">{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
+              if (isInTarget(track)) {
+                if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
+                else toggleTrack(track)
+              } else if (viewingCustom) toggleTrack(track)
+              else setAddTarget(track)
+            }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
-    <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><Heart size={17} /></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { audioRef.current.volume = Number(e.target.value) }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
+    <footer className="player"><div className="now-playing"><img src={current.artworkUrl100}/><div><strong>{current.trackName}</strong></div><button className={isLiked(current) ? 'liked' : ''} onClick={() => toggleLike(current)} aria-label={isLiked(current) ? 'Unlike' : 'Like'} title={isLiked(current) ? 'Unlike' : 'Like'}><Heart size={17} fill={isLiked(current) ? 'currentColor' : 'none'} /></button></div><div className="player-controls"><div className="control-buttons"><button onClick={() => skipBy(-10)} aria-label="Skip back 10 seconds"><SkipBack size={17} fill="currentColor" /></button><button className="play-button" onClick={() => togglePlay(current)} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button onClick={() => skipBy(10)} aria-label="Skip forward 10 seconds"><SkipForward size={17} fill="currentColor" /></button></div><div className="progress"><span>{formatSeconds(currentTime)}</span><input className="progress-range" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(e) => seekTo(e.target.value)} aria-label="Seek through song"/><span>{formatSeconds(duration)}</span></div></div><div className="player-right"><Volume2 size={17}/><input className="volume-range" type="range" min="0" max="1" step="0.01" defaultValue="1" onChange={(e) => { audioRef.current.volume = Number(e.target.value) }} aria-label="Volume"/><button className="queue-button" onClick={() => setShowPlaylist(true)}><ListMusic size={17}/></button></div></footer>
     {showPlaylist && <div className="modal-backdrop" onClick={() => setShowPlaylist(false)}><section className="playlist-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">YOUR LIBRARY</div><h2>My playlist <span>{playlist.length}</span></h2></div><button className="icon-button" onClick={() => setShowPlaylist(false)}><X size={20}/></button></div><div className="modal-list">{playlist.map((track, i) => <div className="modal-track" key={track.trackId}><span className="track-number">{String(i + 1).padStart(2, '0')}</span><img src={track.artworkUrl100}/><div className="modal-copy"><strong>{track.trackName}</strong></div><button onClick={() => togglePlay(track)}>{playing && current.trackId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor"/>}</button><button className="remove-button" onClick={() => requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: 'my' })}><Trash2 size={15}/></button></div>)}</div><div className="modal-footer"><button className="primary-button small" onClick={() => { setShowPlaylist(false); document.querySelector('.search-wrap input')?.focus() }}><Plus size={15}/> Add songs</button></div></section></div>}
     {confirmDelete && <div className="confirm-backdrop" onClick={() => setConfirmDelete(null)}><section className="confirm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}><div className="confirm-icon"><Trash2 size={19}/></div><div><h2>{confirmDelete.kind === 'playlist' ? 'Delete this playlist?' : 'Remove this song?'}</h2><p>{confirmDelete.kind === 'playlist' ? `“${confirmDelete.label}” and its songs will be removed.` : `Remove “${confirmDelete.label}” from this playlist?`}</p></div><div className="confirm-actions"><button className="text-button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" onClick={confirmRemoval}>Delete</button></div></section></div>}
+    {addTarget && <div className="modal-backdrop" onClick={() => setAddTarget(null)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">ADD TO PLAYLIST</div><h2 className="pick-title">{addTarget.trackName}</h2></div><button className="icon-button" onClick={() => setAddTarget(null)}><X size={20}/></button></div><div className="create-body"><div className="pick-list"><button className="pick-item" onClick={() => addTrackTo('my', addTarget)}><span><ListMusic size={16}/> My playlist</span><small>{playlist.length}</small></button>{playlists.map((p) => <button key={p.id} className="pick-item" onClick={() => addTrackTo(p.id, addTarget)}><span><Album size={16}/> {p.name}</span><small>{p.tracks.length}</small></button>)}</div></div></section></div>}
     {showCreatePlaylist && <div className="modal-backdrop" onClick={() => setShowCreatePlaylist(false)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">NEW PLAYLIST</div><h2>Create a playlist</h2></div><button className="icon-button" onClick={() => setShowCreatePlaylist(false)}><X size={20}/></button></div><div className="create-body"><label htmlFor="playlist-name">Playlist name</label><input id="playlist-name" autoFocus value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createPlaylist()} placeholder="e.g. songs for the drive"/><div className="create-actions"><button className="text-button" onClick={() => setShowCreatePlaylist(false)}>Cancel</button><button className="primary-button small" onClick={createPlaylist}><Plus size={15}/> Create playlist</button></div></div></section></div>}
     {showJam && <div className="modal-backdrop" onClick={() => setShowJam(false)}><section className="create-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="overline">LISTEN TOGETHER</div><h2>Jam {jamRoom && <span>● {jamRoom}</span>}</h2></div><button className="icon-button" onClick={() => setShowJam(false)}><X size={20}/></button></div><div className="create-body">
       {!jamRoom ? <>
@@ -321,6 +345,6 @@ function App() {
 }
 
 function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge && <small>{badge}</small>}</button> }
-function TrackCard({ track, index, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap"><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/><button className="card-play" onClick={onPlay} disabled={!track.previewUrl && !track.streamUrl}>{playing && current.trackId === track.trackId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}</button><span className="track-index">0{index + 1}</span></div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <X size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
+function TrackCard({ track, index, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap"><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/><button className="card-play" onClick={onPlay} disabled={!track.previewUrl && !track.streamUrl}>{playing && current.trackId === track.trackId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}</button><span className="track-index">0{index + 1}</span></div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={isLiked ? 'liked' : ''} onClick={onLike} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
 
 createRoot(document.getElementById('root')).render(<App />)
