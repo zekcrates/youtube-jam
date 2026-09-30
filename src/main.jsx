@@ -7,6 +7,7 @@ import {
   SkipForward, Sparkles, Volume2, X, Zap
 } from 'lucide-react'
 import './styles.css'
+import featuredPlaylist from './featured-playlist.json'
 
 const localArtwork = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23221f26%22/%3E%3Ccircle cx=%2250%22 cy=%2242%22 r=%2222%22 fill=%22%23c5ef54%22 opacity=%22.8%22/%3E%3Cpath d=%22M24 74c16-14 28-8 52 0%22 fill=%22none%22 stroke=%22%23dbc6ab%22 stroke-width=%226%22/%3E%3C/svg%3E'
 
@@ -23,6 +24,18 @@ const starterTracks = [{
 const localTracks = starterTracks
 const normalPlaylists = []
 
+const forHerTracks = featuredPlaylist.map((t) => ({
+  trackId: `feat-${t.videoId}`,
+  youtubeId: t.videoId,
+  trackName: t.title,
+  artistName: t.artist,
+  collectionName: 'for her',
+  artworkUrl100: t.thumbnail,
+  previewUrl: `/api/stream?id=${t.videoId}`,
+  trackTimeMillis: (t.durationSec || 0) * 1000,
+}))
+const forHerPlaylist = { id: 'playlist-for-her', name: 'for her', description: 'The whole list, ready to play together', tracks: forHerTracks }
+
 const formatTime = (ms = 0) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
 const formatSeconds = (seconds = 0) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 
@@ -30,7 +43,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState(starterTracks)
   const [playlist, setPlaylist] = useState(() => localTracks)
-  const [playlists, setPlaylists] = useState(() => [])
+  const [playlists, setPlaylists] = useState(() => [forHerPlaylist])
   const [selectedPlaylist, setSelectedPlaylist] = useState('local')
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState('')
@@ -115,7 +128,7 @@ function App() {
   }
 
   const joinJam = (code) => {
-    const room = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'MUSE'
+    const room = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'JAM'
     setJamStatus('Connecting…')
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(`${proto}://${window.location.host}/ws`)
@@ -212,7 +225,7 @@ function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>muse</span></div>
+      <div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>jam</span></div>
       <nav className="nav-group">
         <NavItem icon={<Home size={18} />} label="Discover" active={activeTab === 'Discover'} onClick={() => setActiveTab('Discover')} />
       </nav>
@@ -226,7 +239,7 @@ function App() {
       <nav className="nav-group library-nav">
         {playlists.map((item) => <NavItem key={item.id} icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => openPlaylist(item.id)} />)}
       </nav>
-      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => setShowJam(true)}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 muse</span><span>v0.1 beta</span></div></div>
+      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => setShowJam(true)}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 jam</span><span>v0.1 beta</span></div></div>
     </aside>
 
     <main className="main-content">

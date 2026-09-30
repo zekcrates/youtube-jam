@@ -158,7 +158,7 @@ const server = http.createServer(app);
 // (URLs are IP-bound + expiring, each side resolves its own via /api/stream).
 const rooms = new Map(); // code -> { members: Map<ws, name>, state: object|null }
 const cleanRoom = (code) => {
-  const name = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'MUSE';
+  const name = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'JAM';
   if (!rooms.has(name)) rooms.set(name, { members: new Map(), state: null });
   return name;
 };
