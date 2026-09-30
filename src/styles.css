@@ -318,6 +318,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 /* App-only chrome (bottom tabs, chips, jam pill) — mobile only. */
 .mobile-tabs, .lib-chips, .jam-pill { display: none; }
 .mobile-home-heading { display: none; }
+.mobile-home-quote { display: none; }
 .app-splash {
   position: fixed;
   inset: 0;
@@ -586,6 +587,8 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .mobile-home-heading { display: block; margin: 4px 0 17px; }
   .mobile-home-heading h1 { margin: 0; font-size: 30px; line-height: 1.08; letter-spacing: -.06em; font-weight: 800; }
   .mobile-home-heading em { color: var(--lime-deep); font-family: Georgia, serif; font-style: italic; font-weight: 400; }
+  .mobile-home-quote { display: block; max-width: 310px; margin: 76px auto 0; color: #777263; font-family: Georgia, serif; font-size: 21px; font-style: italic; line-height: 1.35; letter-spacing: -.035em; text-align: center; }
+  .mobile-home-quote::before { content: '✦'; display: block; margin-bottom: 14px; color: var(--lime-deep); font-family: 'DM Mono'; font-size: 12px; font-style: normal; letter-spacing: 0; }
 }
 
 /* Mobile polish pass: curvy minimalist. Desktop untouched. */
