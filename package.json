@@ -1,5 +1,5 @@
 {
-  "name": "jam-clone",
+  "name": "abyss",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -23,8 +23,5 @@
     "vite": "latest",
     "ws": "^8.22.0",
     "youtubei.js": "^18.1.0"
-  },
-  "devDependencies": {
-    "sharp": "^0.35.5"
   }
 }

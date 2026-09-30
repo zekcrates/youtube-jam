@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Album, Heart, Library, ListMusic,
-  LoaderCircle, Pause, Play, Plus, Search, SkipBack,
+  Album, Heart, Home, Library, ListMusic,
+  LoaderCircle, Menu, Pause, Play, Plus, Search, SkipBack,
   SkipForward, Sparkles, Trash2, Volume2, X, Zap
 } from 'lucide-react'
 import './styles.css'
@@ -75,6 +75,7 @@ function App() {
     return [forHerPlaylist]
   })
   const [selectedPlaylist, setSelectedPlaylist] = useState('local')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [liked, setLiked] = useState(() => {
     try { const s = JSON.parse(localStorage.getItem('glass-liked') || 'null'); if (Array.isArray(s)) return s } catch {}
     return []
@@ -306,7 +307,12 @@ function App() {
   }, [playing, current])
   // Ads need a visible player (that's where the real Skip button lives).
   useEffect(() => {
-    try { ytRef.current.player?.setSize(adInfo ? 320 : 2, adInfo ? 180 : 2) } catch {}
+    try {
+      if (adInfo) {
+        const w = Math.min(320, window.innerWidth - 24)
+        ytRef.current.player?.setSize(w, Math.round(w * 9 / 16))
+      } else ytRef.current.player?.setSize(2, 2)
+    } catch {}
   }, [adInfo])
 
   const search = async (value = query) => {
@@ -425,25 +431,32 @@ function App() {
   }
 
   return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>jam</span></div>
+    <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+      <div className="brand"><button className="mobile-menu-button" onClick={() => setMobileNavOpen((open) => !open)} aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}>{mobileNavOpen ? <X size={20}/> : <Menu size={20}/>}</button><span className="brand-mark"><Sparkles size={16} /></span><span>abyss</span>{jamRoom && <button className="jam-pill" onClick={() => setShowJam(true)}><span className="live-dot" />{jamRoom}</button>}</div>
       <div className="nav-label">YOUR LIBRARY</div>
       <nav className="nav-group library-nav">
-        <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => openPlaylist('local')} />
-        <NavItem icon={<Heart size={18} />} label="Liked Songs" badge={liked.length} active={selectedPlaylist === 'liked'} onClick={() => openPlaylist('liked')} />
-        <NavItem icon={<ListMusic size={18} />} label="My playlist" badge={playlist.length} onClick={() => setShowPlaylist(true)} />
+        <NavItem icon={<Library size={18} />} label="Local songs" badge={localTracks.length} active={selectedPlaylist === 'local'} onClick={() => { openPlaylist('local'); setMobileNavOpen(false) }} />
+        <NavItem icon={<Heart size={18} />} label="Liked Songs" badge={liked.length} active={selectedPlaylist === 'liked'} onClick={() => { openPlaylist('liked'); setMobileNavOpen(false) }} />
+        <NavItem icon={<ListMusic size={18} />} label="My playlist" badge={playlist.length} onClick={() => { setShowPlaylist(true); setMobileNavOpen(false) }} />
       </nav>
       <div className="nav-label playlist-label"><span>PLAYLISTS</span><button className="add-playlist-button" onClick={() => setShowCreatePlaylist(true)} aria-label="Create playlist"><Plus size={14} /></button></div>
       <nav className="nav-group library-nav">
-        {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => openPlaylist(item.id)} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
+        {playlists.map((item) => <div key={item.id} className="playlist-nav-row"><NavItem icon={<Album size={17} />} label={item.name} active={selectedPlaylist === item.id} onClick={() => { openPlaylist(item.id); setMobileNavOpen(false) }} /><button className="nav-delete" onClick={() => requestDelete({ kind: 'playlist', id: item.id, label: item.name })} aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`}><Trash2 size={14}/></button></div>)}
       </nav>
-      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => setShowJam(true)}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 jam</span><span>v0.1 beta</span></div></div>
+      <div className="sidebar-bottom"><div className="tiny-label">YOUR SPACE</div><button className="space-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setShowJam(true); setMobileNavOpen(false) }}><div className="space-glow"><Zap size={18} /></div><div><strong>Jam with a friend</strong><span>{jamRoom ? `● ${jamRoom} · ${jamMembers.length}` : 'Start a room'}</span></div><span className="soon">{jamRoom ? 'LIVE' : 'JAM'}</span></button><div className="sidebar-foot"><span>© 2026 abyss</span><span>v0.1 beta</span></div></div>
     </aside>
+    {mobileNavOpen && <button className="mobile-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
 
     <main className="main-content">
       <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) search('') }} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}</div></header>
       <section className="welcome-row"><div><h1>{activeTab === 'Library' ? <>{selectedPlaylist === 'liked' ? 'Liked Songs' : playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && <p>{selectedPlaylist === 'local' ? 'Music available in this project.' : selectedPlaylist === 'liked' ? 'Every song you’ve hearted, in one place.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
-      <section className="section-head"><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} songs` : 'Made for this moment'}</h3>{(query || activeTab === 'Library') && <p>{query ? 'Pick a track to preview or add to your playlist.' : 'Your saved music, ready whenever you are.'}</p>}</div>{query && <button className="text-button" onClick={() => search('')}>Clear search</button>}</section>
+      {activeTab === 'Library' && <div className="lib-chips">
+        <button className={`chip ${selectedPlaylist === 'local' ? 'active' : ''}`} onClick={() => openPlaylist('local')}>Local</button>
+        <button className={`chip ${selectedPlaylist === 'liked' ? 'active' : ''}`} onClick={() => openPlaylist('liked')}>Liked</button>
+        {playlists.map((p) => <button key={p.id} className={`chip ${selectedPlaylist === p.id ? 'active' : ''}`} onClick={() => openPlaylist(p.id)}>{p.name}</button>)}
+        <button className="chip new" onClick={() => setShowCreatePlaylist(true)} aria-label="New playlist"><Plus size={14}/></button>
+      </div>}
+      <section className="section-head"><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} song${selectedLibraryTracks.length === 1 ? '' : 's'}` : 'Made for this moment'}</h3>{(query || activeTab === 'Library') && <p>{query ? 'Pick a track to preview or add to your playlist.' : 'Your saved music, ready whenever you are.'}</p>}</div>{query && <button className="text-button" onClick={() => search('')}>Clear search</button>}</section>
       <section className="track-grid">{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : tracks.slice(0, activeTab === 'Library' ? tracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
               if (isInTarget(track)) {
                 if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
@@ -453,9 +466,7 @@ function App() {
             }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !tracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
-    <div aria-hidden={!adInfo} style={adInfo
-      ? { position: 'fixed', right: 16, bottom: 112, zIndex: 6, width: 320, borderRadius: 14, overflow: 'hidden', boxShadow: '0 18px 50px #3a2f1a33', background: '#000' }
-      : { position: 'fixed', width: 2, height: 2, left: -10, top: -10, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+    <div className={adInfo ? 'ad-holder' : 'yt-holder'} aria-hidden={!adInfo}>
       {adInfo && <div className="ad-tag">AD · your song resumes after</div>}
       <div id="jam-yt-player" />
     </div>
@@ -477,10 +488,19 @@ function App() {
       </>}
       {jamStatus && <p style={{ color: 'var(--muted)', fontSize: 11, marginTop: 14 }}>{jamStatus}</p>}
     </div></section></div>}
+    <nav className="mobile-tabs">
+      <button className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setActiveTab('Discover'); setQuery(''); search(''); window.scrollTo({ top: 0 }) }}><Home size={22}/><span>Home</span></button>
+      <button className={activeTab === 'Library' ? 'active' : ''} onClick={() => { if (activeTab !== 'Library') openPlaylist('local'); window.scrollTo({ top: 0 }) }}><Library size={22}/><span>Library</span></button>
+      <button className={jamRoom ? 'live' : ''} onClick={() => setShowJam(true)}><Zap size={22}/><span>Jam</span>{jamRoom && <i className="live-dot" />}</button>
+    </nav>
   </div>
 }
 
-function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge && <small>{badge}</small>}</button> }
+function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge > 0 && <small>{badge}</small>}</button> }
 function TrackCard({ track, index, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap"><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/><button className="card-play" onClick={onPlay} disabled={!track.previewUrl && !track.streamUrl}>{playing && current.trackId === track.trackId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}</button><span className="track-index">0{index + 1}</span></div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><span>{hideCollection ? '' : track.collectionName || ''}</span><button className={isLiked ? 'liked' : ''} onClick={onLike} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={onAdd} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
 
 createRoot(document.getElementById('root')).render(<App />)
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
+}

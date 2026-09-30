@@ -123,6 +123,10 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   box-shadow: 0 4px 12px #3a2f1a33;
 }
 .track-card:hover .card-play, .track-card.selected .card-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+/* Touch screens have no hover — always show the cover play button. */
+@media (hover: none) {
+  .card-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
 .card-play:disabled { opacity: .5; }
 .track-index { grid-column: 1; grid-row: 1; color: var(--faint); font-family: 'DM Mono'; font-size: 10px; text-align: center; }
 .track-meta { grid-column: 3; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 18px; padding: 0; min-width: 0; }
@@ -239,6 +243,12 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .ad-copy strong { font-size: 12.5px; }
 .ad-copy span { color: var(--muted); font-size: 11px; margin-top: 2px; }
 .ad-tag { font-family: 'DM Mono'; font-size: 8.5px; letter-spacing: .12em; color: #e8e4da; background: rgba(0,0,0,.72); padding: 6px 10px; }
+/* Hidden embed engine; becomes a floating card while an ad plays. */
+.yt-holder { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0; pointer-events: none; overflow: hidden; }
+.ad-holder { position: fixed; right: 16px; bottom: 112px; z-index: 6; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px #3a2f1a33; background: #000; }
+@media (max-width: 650px) {
+  .ad-holder { right: 12px; left: 12px; bottom: 96px; width: auto; }
+}
 .track-card:after { content: none; }
 .nav-delete { display: grid; opacity: 0; place-items: center; width: 28px; height: 28px; border: 1px solid transparent; border-radius: 9px; color: var(--muted); transition: opacity .15s, background .15s, color .15s; }
 .playlist-nav-row:hover .nav-delete, .nav-delete:focus-visible { opacity: 1; }
@@ -251,6 +261,9 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .confirm-card { width: min(390px, 100%); display: grid; grid-template-columns: 42px 1fr; gap: 12px 14px; padding: 21px; border: 1px solid #e1d7d5; border-radius: 18px; background: #fffdfb; color: #27232a; box-shadow: 0 22px 70px rgba(34, 22, 32, .24); }
 .confirm-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: #b3261e; background: #fbe5e5; }
 .confirm-card h2 { margin: 2px 0 5px; font-size: 16px; letter-spacing: -.03em; }.confirm-card p { margin: 0; color: #77717a; font-size: 11px; line-height: 1.5; }.confirm-actions { grid-column: 1 / -1; display: flex; justify-content: end; align-items: center; gap: 17px; margin-top: 7px; }.danger-button { padding: 9px 15px; border-radius: 8px; color: #fff; background: #b3261e; font-size: 11px; font-weight: 800; }.danger-button:hover { background: #8f1c17; }
+
+/* App-only chrome (bottom tabs, chips, jam pill) — mobile only. */
+.mobile-tabs, .lib-chips, .jam-pill { display: none; }
 
 @media (max-width: 1000px) {
   .app-shell { display: block; }
@@ -269,21 +282,18 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .track-card { grid-template-columns: 24px 48px minmax(0, 1fr) 16px; gap: 10px; padding: 7px 10px 7px 8px; }
   .cover-wrap { width: 48px; height: 48px; }
   .track-bottom span { display: none; }
-  .player { grid-template-columns: 1fr auto; gap: 12px; padding: 10px 14px; bottom: 12px; }
-  .player-controls { width: 44px; }
-  .control-buttons { gap: 0; }
-  .control-buttons button:not(.play-button) { display: none; }
-  .progress, .player-right input, .player-right svg { display: none; }
+  /* (Phone player is fully defined in the block below.) */
   .modal-footer { flex-direction: column; align-items: stretch; }
 }
 
 /* Extra-small layout: keep the library usable without horizontal overflow. */
 @media (max-width: 650px) {
   .app-shell { min-width: 0; overflow-x: hidden; padding-bottom: 96px; }
-  .sidebar { position: sticky; top: 0; z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px 10px; align-items: center; padding: 10px 13px 8px; box-shadow: 0 8px 24px #3a2f1a0b; }
+  .sidebar { position: sticky; top: 0; z-index: 8; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; padding: 10px 13px; box-shadow: 0 8px 24px #3a2f1a0b; }
+  .sidebar > .nav-group { display: none; }
   .brand { gap: 8px; padding: 0; font-size: 19px; }
   .brand-mark { width: 28px; height: 28px; border-radius: 9px; }
-  .sidebar > .nav-group { display: flex; min-width: 0; justify-content: end; }
+  /* (Top-bar nav retired — tabs own navigation now.) */
   .sidebar > .nav-group .nav-item { height: 32px; padding: 0 9px; font-size: 10.5px; border-radius: 10px; }
   .sidebar > .nav-group .nav-item svg { width: 15px; height: 15px; }
   .sidebar > .nav-group .nav-item small { display: none; }
@@ -302,7 +312,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .topbar .icon-button { display: none; }
   .topbar { gap: 0; }
   .search-wrap { width: 100%; height: 46px; padding: 0 13px; box-shadow: 0 5px 18px #3a2f1a0b; }
-  .search-wrap input { font-size: 13px; }
+  .search-wrap input { font-size: 16px; }
   .search-wrap kbd { display: none; }
   .welcome-row { margin: 25px 0 20px; align-items: flex-start; flex-direction: column; gap: 11px; }
   .welcome-row h1 { font-size: 29px; line-height: 1.08; }
@@ -312,29 +322,102 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .section-head h3 { font-size: 15px; }
   .section-head p { margin-top: 4px; font-size: 11px; }
   .section-head > .text-button { font-size: 11px; }
-  .track-grid { gap: 5px; }
-  .track-card { grid-template-columns: 22px 44px minmax(0, 1fr); gap: 8px; min-height: 60px; padding: 6px 5px 6px 2px; border-radius: 14px; }
+  .track-grid { gap: 8px; }
+  .track-card { grid-template-columns: 20px 50px minmax(0, 1fr); gap: 10px; min-height: 66px; padding: 8px 10px 8px 4px; border-radius: 16px; }
   .track-card:active { background: var(--lime-wash); }
-  .cover-wrap { width: 44px; height: 44px; border-radius: 10px; }
+  .cover-wrap { width: 50px; height: 50px; border-radius: 12px; }
   .track-index { font-size: 9px; }
-  .track-title { font-size: 12.5px; }
-  .track-bottom { gap: 4px; }
-  .track-bottom button { width: 29px; height: 29px; }
-  .track-bottom button svg { width: 15px; height: 15px; }
+  .track-title { font-size: 13.5px; }
+  .track-bottom { gap: 6px; }
+  .track-bottom button { width: 34px; height: 34px; }
+  .track-bottom button svg { width: 16px; height: 16px; }
   .track-meta { min-width: 0; }
-  .player { min-height: 76px; height: auto; padding: 8px 11px calc(8px + env(safe-area-inset-bottom)); grid-template-columns: minmax(0, 1fr) auto; gap: 8px; bottom: 0; border-radius: 16px 16px 0 0; width: 100%; }
-  .now-playing { gap: 8px; }
-  .now-playing img { width: 40px; height: 40px; border-radius: 10px; }
-  .now-playing strong { font-size: 11.5px; }
-  .now-playing button { width: 28px; height: 28px; }
-  .player-controls { display: grid; grid-template-columns: 38px minmax(74px, 1fr); align-items: center; gap: 7px; width: 120px; }
-  .control-buttons { gap: 0; }
+  /* Phone player: song row on top, full-width seek bar below. */
+  .player {
+    min-height: 0; height: auto;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    gap: 4px 10px;
+    bottom: 0; border-radius: 20px 20px 0 0; width: 100%;
+  }
+  .now-playing { grid-column: 1; grid-row: 1; gap: 10px; }
+  .now-playing img { width: 44px; height: 44px; border-radius: 12px; }
+  .now-playing strong { font-size: 13px; }
+  .now-playing button { width: 34px; height: 34px; }
+  .player-controls { display: contents; }
+  .control-buttons { grid-column: 2; grid-row: 1; gap: 0; }
   .control-buttons button:not(.play-button) { display: none; }
-  .control-buttons .play-button { width: 38px; height: 38px; }
-  .progress { display: flex; gap: 4px; margin-top: 0; min-width: 0; }
-  .progress span { font-size: 8px; }
-  .progress-range { min-width: 0; }
-  .player-right { display: none; }
+  .control-buttons .play-button { width: 46px; height: 46px; }
+  .progress { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 8px; margin-top: 6px; }
+  .progress span { font-size: 9px; }
+  .progress-range { min-width: 0; height: 6px; }
+  .progress-range::-webkit-slider-thumb { width: 16px; height: 16px; }
+  /* Drawer retired on phones — tabs + chips replace it. */
+  .mobile-menu-button { display: none; }
+  .jam-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-left: auto; padding: 7px 11px; border-radius: 100px;
+    background: var(--ink); color: #faf8f4;
+    font-family: 'DM Mono'; font-size: 10px; letter-spacing: .08em;
+  }
+  .jam-pill .live-dot { margin-right: 0; }
+
+  /* Bottom tab bar. */
+  .mobile-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .92); backdrop-filter: blur(18px);
+    border-top: 1px solid var(--line);
+  }
+  .mobile-tabs button {
+    position: relative; display: grid; place-items: center; gap: 3px;
+    padding: 5px 0 3px; border-radius: 12px; color: var(--faint);
+    font-size: 9.5px; font-weight: 700;
+  }
+  .mobile-tabs button.active { color: var(--ink); }
+  .mobile-tabs button.live { color: var(--lime-deep); }
+  .mobile-tabs button .live-dot { position: absolute; top: 6px; right: calc(50% - 18px); margin: 0; }
+
+  /* Library playlist chips. */
+  .lib-chips {
+    display: flex; gap: 8px; overflow-x: auto;
+    margin: 0 -12px 4px; padding: 2px 12px 8px; scrollbar-width: none;
+  }
+  .lib-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 9px 15px; border-radius: 100px;
+    border: 1px solid var(--line); background: var(--card);
+    font-size: 12px; font-weight: 700; color: #6f6a5e;
+  }
+  .chip.active { background: var(--ink); border-color: var(--ink); color: #faf8f4; }
+  .chip.new { padding: 9px 11px; color: var(--lime-deep); border-color: #c9d689; background: var(--lime-wash); }
+
+  /* Mini player floating above the tabs. */
+  .main-content { padding-bottom: 210px; }
+  .app-shell { padding-bottom: 0; }
+  .player {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto;
+    padding: 10px 12px 12px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    border-radius: 18px; width: calc(100% - 20px);
+  }
+  .now-playing { grid-column: 1; grid-row: 1; }
+  .player-controls { display: contents; }
+  .control-buttons { grid-column: 2; grid-row: 1; }
+  .control-buttons .play-button { width: 44px; height: 44px; }
+  .player-right { grid-column: 3; grid-row: 1; display: flex; }
+  .player-right input, .player-right > svg { display: none; }
+  .queue-button { margin-left: 0; width: 40px; height: 40px; }
+  .progress {
+    position: absolute; top: -2px; left: 16px; right: 16px;
+    margin-top: 0;
+  }
+  .progress span { display: none; }
+  .progress-range { height: 4px; }
+  .progress-range::-webkit-slider-thumb { width: 12px; height: 12px; border-width: 2px; }
   .playlist-modal, .create-modal { border-radius: 18px; }
   .playlist-modal { max-height: calc(100vh - 28px); }
   .modal-header { padding: 19px 18px 14px; }
@@ -345,4 +428,77 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .create-actions { gap: 12px; flex-wrap: wrap; }
   .confirm-card { grid-template-columns: 36px minmax(0, 1fr); padding: 17px; border-radius: 16px; }
   .confirm-icon { width: 36px; height: 36px; border-radius: 11px; }
+}
+
+/* Mobile navigation drawer */
+.mobile-menu-button, .mobile-nav-backdrop { display: none; }
+@media (max-width: 650px) {
+  .mobile-menu-button {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin-right: 2px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    background: var(--card);
+    box-shadow: 0 4px 12px #3a2f1a0b;
+    flex: none;
+  }
+  .mobile-menu-button:active { background: var(--lime-wash); }
+  /* Top bar shows brand only; everything else lives in the drawer. */
+  .sidebar:not(.mobile-open) > .nav-label,
+  .sidebar:not(.mobile-open) > .nav-group,
+  .sidebar:not(.mobile-open) > .sidebar-bottom { display: none; }
+  .sidebar.mobile-open {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+    width: min(320px, 86vw);
+    overflow-y: auto;
+    display: block;
+    padding: 14px 14px 20px;
+    border-right: 1px solid var(--line);
+    border-radius: 0 22px 22px 0;
+    box-shadow: 24px 0 70px #201d1840;
+    animation: slidein .22s ease-out;
+  }
+  @keyframes slidein { from { transform: translateX(-40px); opacity: 0; } }
+  .sidebar.mobile-open .brand { padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+  .sidebar.mobile-open > .nav-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 19px 4px 8px;
+  }
+  .sidebar.mobile-open > .nav-group {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .sidebar.mobile-open .library-nav { display: grid; overflow: visible; padding: 0; }
+  .sidebar.mobile-open .nav-item { width: 100%; height: 42px; padding: 0 12px; font-size: 12px; }
+  .sidebar.mobile-open .nav-item small { display: block; }
+  .sidebar.mobile-open .playlist-nav-row { display: flex; align-items: center; }
+  .sidebar.mobile-open .playlist-nav-row .nav-item { flex: 1; min-width: 0; }
+  .sidebar.mobile-open .nav-delete { display: grid; opacity: 1; margin-left: 5px; }
+  .sidebar.mobile-open > .sidebar-bottom { display: block; margin-top: 22px; }
+  .sidebar.mobile-open .sidebar-bottom .tiny-label { display: block; margin: 0 4px 8px; }
+  .sidebar.mobile-open .sidebar-foot { display: flex; margin: 18px 4px 2px; }
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    width: 100%;
+    height: 100%;
+    background: #201d1842;
+    backdrop-filter: blur(3px);
+  }
+}
+
+/* Tabs replace the hamburger drawer — keep it buried. */
+@media (max-width: 650px) {
+  .mobile-menu-button { display: none; }
 }
