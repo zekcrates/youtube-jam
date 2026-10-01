@@ -7,13 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Innertube, Platform } from 'youtubei.js';
 
-// What's wrong with direct browser use (why this proxy exists):
-// 1. youtubei.js needs to run YouTube's obfuscated player JS to decipher
-//    audio URLs -> needs a JS evaluator shim (below). Browsers block this pattern.
-// 2. YouTube strips audio-only URLs unless deciphered + requested with
-//    YouTube Referer/Origin + Range. Browsers send localhost Origin -> 403.
-// 3. InnerTube calls get CORS-blocked from browsers. So Node does the
-//    search + decipher + byte-proxy, frontend just plays /api/stream.
 Platform.shim.eval = async (data, env) => {
   const props = [];
   if (env?.n) props.push(`n: exportedVars.nFunction("${env.n}")`);
@@ -30,16 +23,12 @@ let yt = null;
 async function getYt() {
   if (!yt) {
     console.log('[yt] creating Innertube session...');
-    // YT_COOKIE: paste a logged-in youtube.com cookie header (Render env var).
-    // Datacenter IPs get "Sign in to confirm you're not a bot" on player
-    // requests; an authenticated session bypasses that check.
     yt = await Innertube.create(process.env.YT_COOKIE ? { cookie: process.env.YT_COOKIE } : {});
     console.log(`[yt] session ready${process.env.YT_COOKIE ? ' (authenticated)' : ''}`);
   }
   return yt;
 }
 
-// Short-lived cache: videoId -> { url, itag, mime, expiresAt }
 const urlCache = new Map();
 const CACHE_MS = 10 * 60 * 1000;
 
@@ -49,7 +38,6 @@ const UPSTREAM_HEADERS = {
   Origin: 'https://www.youtube.com',
 };
 
-// 1KB probe: is this URL actually fetchable from THIS network?
 async function verifyUrl(url) {
   try {
     const r = await fetch(url, { headers: { ...UPSTREAM_HEADERS, Range: 'bytes=0-1023' } });
@@ -63,9 +51,6 @@ const withTimeout = (p, ms, label) => Promise.race([
   new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout ${label}`)), ms)),
 ]);
 
-// Candidate InnerTube clients, most-likely first. Direct-URL progressive
-// formats (itag 18/22) need no decipher; ciphered audio needs the eval shim
-// + a live upstream check because datacenter IPs get throttled/token-gated.
 const CLIENT_PLAN = ['ANDROID', 'WEB', 'YTMUSIC', 'TV', 'ANDROID_VR', 'TV_EMBEDDED', 'WEB_EMBEDDED', 'MWEB'];
 
 async function probeClient(innertube, videoId, clientName) {
@@ -129,7 +114,6 @@ async function resolveAudioUrl(videoId) {
   throw lastErr;
 }
 
-// Ground-truth report from THIS network: which clients yield playable audio?
 app.get('/api/diag', async (req, res) => {
   try {
     const id = String(req.query.id || '').trim();
@@ -181,7 +165,6 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// Proxy audio bytes so the <audio> tag never touches googlevideo directly.
 app.get('/api/stream', async (req, res) => {
   try {
     const id = String(req.query.id || '').trim();
@@ -194,8 +177,6 @@ app.get('/api/stream', async (req, res) => {
       Origin: 'https://www.youtube.com',
     };
     if (req.headers.range) headers.Range = req.headers.range;
-    // No forced Range: ANDROID progressive URLs support full + ranged alike.
-
     const upstream = await fetch(url, { headers });
     if (!upstream.ok && upstream.status !== 206) {
       urlCache.delete(id);
@@ -210,7 +191,6 @@ app.get('/api/stream', async (req, res) => {
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'no-store');
 
-    // Stream without buffering whole song in memory.
     const reader = upstream.body.getReader();
     req.on('close', () => reader.cancel().catch(() => {}));
     while (true) {
@@ -229,9 +209,7 @@ app.get('/api/stream', async (req, res) => {
 const PORT = process.env.PORT || process.env.YT_PORT || 3001;
 const server = http.createServer(app);
 
-// --- Jam sync: tiny room hub. Clients share videoId + position, never stream URLs
-// (URLs are IP-bound + expiring, each side resolves its own via /api/stream).
-const rooms = new Map(); // code -> { members: Map<ws, name>, state: object|null }
+const rooms = new Map();
 const normalizeRoom = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 const cleanRoom = (code) => {
   const name = normalizeRoom(code) || 'JAM';
@@ -259,8 +237,6 @@ wss.on('connection', (ws) => {
       if (room) rooms.get(room)?.members.delete(ws);
       const wanted = normalizeRoom(msg.room);
       if (!wanted) { ws.send(JSON.stringify({ t: 'error', message: 'Enter the room code first.' })); room = null; return; }
-      // Joining needs an existing room (typos shouldn't strand you alone).
-      // Only explicit creates may open a new one.
       if (!msg.create && !rooms.has(wanted)) {
         ws.send(JSON.stringify({ t: 'error', message: `No jam with code ${wanted} — check the code and try again.` }));
         room = null;
@@ -317,8 +293,6 @@ app.get('/api/suggest', async (req, res) => {
   } catch { res.json({ suggestions: [] }); }
 });
 
-// Single-service deploy: serve the built frontend (vite dist) from this same
-// server so /api and /ws stay same-origin wherever it's hosted.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(here, '..', 'dist');
 if (fs.existsSync(path.join(distDir, 'index.html'))) {

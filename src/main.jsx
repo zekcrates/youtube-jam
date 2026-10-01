@@ -2,85 +2,25 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Album, Check, Heart, Home, Library, ListMusic, MessageCircle,
-  LoaderCircle, Menu, Pause, Play, Plus, Search, Send, SkipBack,
-  SkipForward, Sparkles, Trash2, Volume2, X, Zap
+  LoaderCircle, Menu, Pause, Play, Plus, Send, SkipBack,
+  SkipForward, Trash2, Volume2, X, Zap
 } from 'lucide-react'
 import './styles.css'
-import featuredPlaylist from './featured-playlist.json'
-
-// Split deploy: set VITE_JAM_API to the backend URL (e.g. https://jam-clone.onrender.com).
-// Empty = same origin (local dev + single-service hosting).
-const BACKEND = (import.meta.env.VITE_JAM_API || '').replace(/\/$/, '')
-const api = (p) => `${BACKEND}${p}`
-
-const localArtwork = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23221f26%22/%3E%3Ccircle cx=%2250%22 cy=%2242%22 r=%2222%22 fill=%22%23c5ef54%22 opacity=%22.8%22/%3E%3Cpath d=%22M24 74c16-14 28-8 52 0%22 fill=%22none%22 stroke=%22%23dbc6ab%22 stroke-width=%226%22/%3E%3C/svg%3E'
-
-const starterTracks = [{
-  trackId: 'local-too-much-heaven',
-  trackName: 'Too Much Heaven',
-  artistName: 'Bee Gees',
-  collectionName: 'Local music',
-  artworkUrl100: localArtwork,
-  previewUrl: '/songs/too-much-heaven.mp3',
-  trackTimeMillis: 280000,
-}]
-
-const localTracks = starterTracks
-const normalPlaylists = []
-
-const artistAliases = {
-  'Queen Official': 'Queen',
-  'beegees': 'Bee Gees',
-  'Eurovision Song Contest': 'Alexander Rybak',
-  'Universal Music India': 'Faheem Abdullah',
-  'Play DMF and Harsh Nussi': 'Harsh Nussi',
-  'T-Series': 'Arijit Singh',
-  'SagaHits': 'Satinder Sartaaj',
-  'Sony Music India': 'Gajendra Verma',
-  'Jatt Life Studios': 'Zehr Vibe',
-  'Desi Music Factory': 'Akhil',
-  'Collab Creations and SUKHA': 'Sukha',
-  'Geet MP3': 'Nav Singh',
-  'Chronicle Records': 'Armaan Gill',
-  'SHUBH': 'Shubh',
-}
-
-const forHerTracks = featuredPlaylist.map((t) => ({
-  trackId: `feat-${t.videoId}`,
-  youtubeId: t.videoId,
-  trackName: t.title,
-  artistName: artistAliases[t.artist] || t.artist.replace(/\s+Official$/i, '').trim(),
-  collectionName: '',
-  artworkUrl100: t.thumbnail,
-  previewUrl: api(`/api/stream?id=${t.videoId}`),
-  trackTimeMillis: (t.durationSec || 0) * 1000,
-}))
-const forHerPlaylist = { id: 'playlist-for-her', name: 'for her', description: 'The whole list, ready to play together', tracks: forHerTracks }
-
-const formatTime = (ms = 0) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
-const formatSeconds = (seconds = 0) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
+import { NavItem, SearchBar, TrackCard } from './components'
+import {
+  api, BACKEND, forHerPlaylist, formatSeconds, loadPlaylists,
+  createRoomCode, localTracks, readStoredArray, starterTracks, toYoutubeTrack,
+} from './app-data'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true)
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState(starterTracks)
   const [playlist, setPlaylist] = useState([])
-  const [playlists, setPlaylists] = useState(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem('muse-playlists') || 'null')
-      if (Array.isArray(s) && s.length) {
-        const normalized = s.map((p) => p.id === forHerPlaylist.id ? { ...p, name: 'for her', tracks: p.tracks.map((track) => ({ ...track, collectionName: '' })) } : p)
-        return normalized.some((p) => p.id === forHerPlaylist.id) ? normalized : [forHerPlaylist, ...normalized]
-      }
-    } catch {}
-    return [forHerPlaylist]
-  })
+  const [playlists, setPlaylists] = useState(loadPlaylists)
   const [selectedPlaylist, setSelectedPlaylist] = useState('local')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [liked, setLiked] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem('glass-liked') || 'null'); if (Array.isArray(s)) return s } catch {}
-    return []
-  })
+  const [liked, setLiked] = useState(() => readStoredArray('glass-liked'))
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -124,7 +64,6 @@ function App() {
   const chatEndRef = useRef(null)
   const currentRef = useRef(current)
   currentRef.current = current
-  const jamConnected = !!jamRoom
   jamRoomRef.current = jamRoom
 
   useEffect(() => {
@@ -136,8 +75,6 @@ function App() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Browsers block sound until the user has tapped something. If a remote
-  // play leaves the embed stuck silent, say so instead of faking playback.
   const watchAutoplay = (track) => {
     setTimeout(() => {
       try {
@@ -172,8 +109,6 @@ function App() {
     }
   }, [current.trackTimeMillis])
 
-  // --- Hidden YouTube embed engine (official player: never bot-blocked).
-  // Local files (no youtubeId) keep using the <audio> element.
   const ytExec = (a) => {
     const slot = ytRef.current
     if (!slot.ready || !slot.player) { if (a.type === 'load') pendingRef.current = a; return }
@@ -196,22 +131,33 @@ function App() {
     }
     return audioRef.current?.currentTime || 0
   }
-  const playTrackAt = (track, pos, shouldPlay) => {
+  const setTrack = (track, position) => {
     setAdInfo(null)
-    setCurrent(track); setCurrentTime(pos); setDuration(track.trackTimeMillis / 1000 || 0)
-    if (track.youtubeId) {
-      try { audioRef.current?.pause() } catch {}
-      setPlaying(shouldPlay)
-      ytExec({ type: 'load', videoId: track.youtubeId, pos, play: shouldPlay })
-      if (shouldPlay) watchAutoplay(track)
-    } else {
-      ytExec({ type: 'stop' })
-      const a = audioRef.current
-      a.src = track.streamUrl || track.previewUrl
-      a.currentTime = Math.max(0, pos)
-      if (shouldPlay) a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
-      else { a.pause(); setPlaying(false) }
-    }
+    setCurrent(track)
+    setCurrentTime(position)
+    setDuration(track.trackTimeMillis / 1000 || 0)
+  }
+
+  const playYoutubeTrack = (track, position, shouldPlay) => {
+    try { audioRef.current?.pause() } catch {}
+    setPlaying(shouldPlay)
+    ytExec({ type: 'load', videoId: track.youtubeId, pos: position, play: shouldPlay })
+    if (shouldPlay) watchAutoplay(track)
+  }
+
+  const playLocalTrack = (track, position, shouldPlay) => {
+    ytExec({ type: 'stop' })
+    const audio = audioRef.current
+    audio.src = track.streamUrl || track.previewUrl
+    audio.currentTime = Math.max(0, position)
+    if (shouldPlay) audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    else { audio.pause(); setPlaying(false) }
+  }
+
+  const playTrackAt = (track, position, shouldPlay) => {
+    setTrack(track, position)
+    if (track.youtubeId) playYoutubeTrack(track, position, shouldPlay)
+    else playLocalTrack(track, position, shouldPlay)
   }
 
   useEffect(() => {
@@ -247,7 +193,6 @@ function App() {
     return () => { cancelled = true }
   }, [])
 
-  // --- Jam sync (rooms share videoId + position, each side plays its own copy)
   const broadcastJam = (over = {}) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== 1 || !jamRoomRef.current || applyingRef.current) return
@@ -353,29 +298,43 @@ function App() {
     }
     setJamDraft('')
   }
-  const leaveJam = () => { try { wsRef.current?.send(JSON.stringify({ t: 'bye' })); wsRef.current?.close() } catch {} wsRef.current = null; jamMembersRef.current = []; setJamRoom(''); setJamMembers([]); setJamMessages([]); setJamDraft(''); setShowChat(false); setJamStatus(''); try { localStorage.removeItem('jam-session') } catch {} pushToast('Left the jam') }
-  // Rejoin after refresh: the room (and its last state) survives on the server
-  // as long as someone is still in it.
+  const closeJamConnection = () => {
+    try {
+      wsRef.current?.send(JSON.stringify({ t: 'bye' }))
+      wsRef.current?.close()
+    } catch {}
+    wsRef.current = null
+  }
+
+  const resetJamState = () => {
+    jamMembersRef.current = []
+    setJamRoom('')
+    setJamMembers([])
+    setJamMessages([])
+    setJamDraft('')
+    setShowChat(false)
+    setJamStatus('')
+  }
+
+  const leaveJam = () => {
+    closeJamConnection()
+    resetJamState()
+    localStorage.removeItem('jam-session')
+    pushToast('Left the jam')
+  }
   useEffect(() => {
     try {
       const s = JSON.parse(localStorage.getItem('jam-session') || 'null')
       if (s?.room) { if (s.name) setJamName(s.name); joinJam(s.room, false, s.name) }
     } catch {}
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const makeRoomCode = () => { const c = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += c[Math.floor(Math.random() * c.length)]; return s }
-
-  // Broadcast local play/pause/track changes (not remote-applied ones).
-  useEffect(() => { if (jamRoom) broadcastJam() }, [current, playing]) // eslint-disable-line react-hooks/exhaustive-deps
-  // Gentle drift correction while playing together.
+  useEffect(() => { if (jamRoom) broadcastJam() }, [current, playing])
   useEffect(() => {
     if (!jamRoom || !playing) return
     const id = setInterval(() => broadcastJam(), 3000)
     return () => clearInterval(id)
-  }, [jamRoom, playing]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jamRoom, playing])
   useEffect(() => () => wsRef.current?.close(), [])
-  // Embed progress has no timeupdate events — poll while a YouTube track plays.
-  // Bonus: while an ad runs, the player's metadata flips to the AD's video,
-  // which is how we detect ads and show them nicely instead of a stuck UI.
   useEffect(() => {
     if (!playing || !current.youtubeId) return
     const id = setInterval(() => {
@@ -392,7 +351,6 @@ function App() {
     }, 500)
     return () => clearInterval(id)
   }, [playing, current])
-  // Ads need a visible player (that's where the real Skip button lives).
   useEffect(() => {
     try {
       if (adInfo) {
@@ -419,6 +377,35 @@ function App() {
   }
   const pickSuggest = (value) => { setSuggestOpen(false); setSuggest([]); search(value) }
 
+  const handleSearchInput = (value) => {
+    setQuery(value)
+    fetchSuggest(value)
+    if (value) setTracks([])
+    else search('')
+  }
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown' && suggestOpen) {
+      event.preventDefault()
+      setSuggestIdx((index) => (index + 1) % suggest.length)
+      return
+    }
+    if (event.key === 'ArrowUp' && suggestOpen) {
+      event.preventDefault()
+      setSuggestIdx((index) => (index - 1 + suggest.length) % suggest.length)
+      return
+    }
+    if (event.key === 'Enter') {
+      if (suggestOpen && suggestIdx >= 0 && suggest[suggestIdx]) pickSuggest(suggest[suggestIdx])
+      else { setSuggestOpen(false); search() }
+      return
+    }
+    if (event.key === 'Escape') {
+      setSuggestOpen(false)
+      setSuggest([])
+    }
+  }
+
   const search = async (value = query) => {
     setQuery(value)
     if (!value.trim()) { setTracks(starterTracks); setSearchError(''); return }
@@ -434,16 +421,7 @@ function App() {
         setSearchError(`No results for “${value}” — showing local music.`)
         return
       }
-      setTracks(ytData.tracks.map((t) => ({
-        trackId: `yt-${t.videoId}`,
-        youtubeId: t.videoId,
-        trackName: t.title,
-        artistName: t.artist,
-        collectionName: 'YouTube',
-        artworkUrl100: t.thumbnail,
-        previewUrl: api(`/api/stream?id=${t.videoId}`),
-        trackTimeMillis: (t.durationSec || 0) * 1000,
-      })))
+      setTracks(ytData.tracks.map((track) => toYoutubeTrack(track)))
     } catch {
       setTracks(starterTracks)
       setSearchError('Search isn’t available right now — showing local music.')
@@ -451,26 +429,28 @@ function App() {
     finally { setLoading(false) }
   }
 
-  const togglePlay = (track = current) => {
-    if (!track) return
-    if (track.youtubeId) {
-      if (current.trackId !== track.trackId || ytRef.current.videoId !== track.youtubeId) playTrackAt(track, 0, true)
-      else if (playing) { setPlaying(false); ytExec({ type: 'pause' }) }
-      else { setPlaying(true); ytExec({ type: 'play' }) }
-      return
-    }
+  const toggleYoutubePlayback = (track) => {
+    const isNewTrack = current.trackId !== track.trackId || ytRef.current.videoId !== track.youtubeId
+    if (isNewTrack) playTrackAt(track, 0, true)
+    else if (playing) { setPlaying(false); ytExec({ type: 'pause' }) }
+    else { setPlaying(true); ytExec({ type: 'play' }) }
+  }
+
+  const toggleLocalPlayback = (track) => {
     if (!track.previewUrl && !track.streamUrl) return
-    ytExec({ type: 'stop' })
     if (current.trackId !== track.trackId) {
-      setCurrent(track); setCurrentTime(0); setDuration(track.trackTimeMillis / 1000 || 0)
-      audioRef.current.src = track.streamUrl || track.previewUrl
-      audioRef.current.currentTime = 0
-      audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      playTrackAt(track, 0, true)
       return
     }
     if (!audioRef.current.src) audioRef.current.src = track.streamUrl || track.previewUrl
     if (playing) { audioRef.current.pause(); setPlaying(false) }
-    else { audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) }
+    else audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+  }
+
+  const togglePlay = (track = current) => {
+    if (!track) return
+    if (track.youtubeId) toggleYoutubePlayback(track)
+    else toggleLocalPlayback(track)
   }
   const seekTo = (value) => {
     const nextTime = Number(value)
@@ -488,7 +468,6 @@ function App() {
     if (next) togglePlay(next)
   }
 
-  // Lockscreen / notification controls (Media Session API).
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
     try {
@@ -525,8 +504,6 @@ function App() {
   }
   const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my' && selectedPlaylist !== 'liked'
   const customViewed = viewingCustom ? playlists.find((item) => item.id === selectedPlaylist) : null
-  // The + button always targets what you're looking at: a custom playlist when
-  // one is open, otherwise My playlist. Clicking again removes it (toggle).
   const isInTarget = (track) => viewingCustom && customViewed
     ? customViewed.tracks.some((song) => song.trackId === track.trackId)
     : playlist.some((song) => song.trackId === track.trackId)
@@ -544,7 +521,6 @@ function App() {
     setPlaylist((old) => has ? old.filter((item) => item.trackId !== track.trackId) : [...old, track])
     pushToast(has ? 'Removed from My playlist' : 'Added to My playlist')
   }
-  const addToPlaylist = toggleTrack
   const addTrackTo = (listId, track) => {
     if (!track) return
     const name = listId === 'my' ? 'My playlist' : playlists.find((p) => p.id === listId)?.name || 'playlist'
@@ -615,12 +591,18 @@ function App() {
         </div>
       </section>}
       {!query && activeTab !== 'Library' && <div className="mobile-home-heading"><h1>Find your next <em>favorite.</em></h1></div>}
-      <header className="topbar"><div className="search-wrap"><Search size={18} /><input value={query} onChange={(e) => { const value = e.target.value; setQuery(value); fetchSuggest(value); if (value) setTracks([]); else search('') }} onKeyDown={(e) => {
-        if (e.key === 'ArrowDown' && suggestOpen) { e.preventDefault(); setSuggestIdx((i) => (i + 1) % suggest.length) }
-        else if (e.key === 'ArrowUp' && suggestOpen) { e.preventDefault(); setSuggestIdx((i) => (i - 1 + suggest.length) % suggest.length) }
-        else if (e.key === 'Enter') { if (suggestOpen && suggestIdx >= 0 && suggest[suggestIdx]) pickSuggest(suggest[suggestIdx]); else { setSuggestOpen(false); search() } }
-        else if (e.key === 'Escape') { setSuggestOpen(false); setSuggest([]) }
-      }} onBlur={() => setTimeout(() => setSuggestOpen(false), 150)} placeholder="Search artists, songs, albums..."/>{query && <button className="clear-search" onClick={() => search('')}><X size={15}/></button>}{suggestOpen && !!suggest.length && <div className="suggest-list">{suggest.map((s, i) => <button key={s} className={i === suggestIdx ? 'active' : ''} onMouseDown={(e) => { e.preventDefault(); pickSuggest(s) }} onMouseEnter={() => setSuggestIdx(i)}><Search size={14}/><span>{s}</span></button>)}</div>}</div></header>
+      <SearchBar
+        query={query}
+        suggestions={suggest}
+        suggestionIndex={suggestIdx}
+        suggestionsOpen={suggestOpen}
+        onChange={handleSearchInput}
+        onKeyDown={handleSearchKeyDown}
+        onPick={pickSuggest}
+        onHover={setSuggestIdx}
+        onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+        onClear={() => search('')}
+      />
       {!query && activeTab !== 'Library' && <p className="mobile-home-quote">“And if you gaze long into an abyss, the abyss also gazes into you.”</p>}
       <section className={`welcome-row ${activeTab === 'Library' ? '' : 'home-welcome'}`}><div><h1>{activeTab === 'Library' ? selectedPlaylist === 'local' ? 'Local songs' : <>{selectedPlaylist === 'liked' ? 'Liked Songs' : playlists.find((item) => item.id === selectedPlaylist)?.name || 'Local songs'} <em>collection.</em></> : <>Find your next <em>favorite.</em></>}</h1>{activeTab === 'Library' && !viewingCustom && selectedPlaylist !== 'local' && <p>{selectedPlaylist === 'liked' ? 'Every song you’ve hearted, in one place.' : playlists.find((item) => item.id === selectedPlaylist)?.description}</p>}</div>{activeTab === 'Library' && viewingCustom && <button className="text-button" onClick={() => requestDelete({ kind: 'playlist', id: selectedPlaylist, label: playlists.find((item) => item.id === selectedPlaylist)?.name })}><Trash2 size={14}/> Delete playlist</button>}</section>
       {activeTab === 'Library' && <div className="lib-chips">
@@ -631,13 +613,13 @@ function App() {
         <button className="chip new" onClick={() => setShowCreatePlaylist(true)} aria-label="New playlist"><Plus size={14}/></button>
       </div>}
       <section className={`section-head ${!query && activeTab !== 'Library' ? 'home-section-head' : ''}`}><div><h3>{query ? `Results for “${query}”` : activeTab === 'Library' ? `${selectedLibraryTracks.length} song${selectedLibraryTracks.length === 1 ? '' : 's'}` : 'Made for this moment'}</h3>{activeTab === 'Library' && !query && <p>Your saved music, ready whenever you are.</p>}</div></section>
-      <section className={`track-grid ${!query && activeTab !== 'Library' ? 'home-track-grid' : ''}`}>{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : displayedTracks.slice(0, activeTab === 'Library' ? displayedTracks.length : 6).map((track, i) => <TrackCard key={track.trackId} track={track} index={i} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
+      <section className={`track-grid ${!query && activeTab !== 'Library' ? 'home-track-grid' : ''}`}>{adInfo && <div className="ad-banner"><span className="ad-pill"><span className="live-dot" />AD</span><div className="ad-copy"><strong>{adInfo.title}</strong>{adInfo.author && <span>{adInfo.author}</span>}</div></div>}{searchError && !loading && <div className="empty">{searchError}</div>}{loading ? <div className="loading"><LoaderCircle className="spin" size={22}/> Finding something good...</div> : displayedTracks.slice(0, activeTab === 'Library' ? displayedTracks.length : 6).map((track) => <TrackCard key={track.trackId} track={track} current={current} playing={playing} onPlay={() => togglePlay(track)} onAdd={() => {
               if (isInTarget(track)) {
                 if (viewingCustom) requestDelete({ kind: 'track', id: track.trackId, label: track.trackName, playlistId: selectedPlaylist })
                 else toggleTrack(track)
               } else if (viewingCustom) toggleTrack(track)
               else setAddTarget(track)
-            }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} hideCollection={viewingCustom} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !displayedTracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
+            }} inPlaylist={isInTarget(track)} isRemove={viewingCustom && isInTarget(track)} onLike={() => toggleLike(track)} isLiked={isLiked(track)} />)}{!loading && !searchError && !displayedTracks.length && <div className="empty">No tracks found. Try another artist or song.</div>}</section>
     </main>
 
     <div className={adInfo ? 'ad-holder' : 'yt-holder'} aria-hidden={!adInfo}>
@@ -654,7 +636,7 @@ function App() {
       {!jamRoom ? <>
         <label htmlFor="jam-name">Your name</label><input id="jam-name" value={jamName} onChange={(e) => setJamName(e.target.value)} placeholder="e.g. hardi" style={{ marginBottom: 14 }} />
         <label htmlFor="jam-code">Room code (ask your friend for theirs)</label><input id="jam-code" value={jamRoomInput} onChange={(e) => setJamRoomInput(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && joinJam(jamRoomInput)} placeholder="e.g. KQ4M" style={{ marginBottom: 14 }} />
-        <div className="create-actions"><button className="text-button" onClick={() => { const c = makeRoomCode(); setJamRoomInput(c); joinJam(c, true) }}>Create new room</button><button className="primary-button small" onClick={() => joinJam(jamRoomInput)}><Zap size={15}/> Join jam</button></div>
+       <div className="create-actions"><button className="text-button" onClick={() => { const code = createRoomCode(); setJamRoomInput(code); joinJam(code, true) }}>Create new room</button><button className="primary-button small" onClick={() => joinJam(jamRoomInput)}><Zap size={15}/> Join jam</button></div>
       </> : <>
         <label>Who's in ({jamMembers.length})</label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>{jamMembers.map((m) => <span key={m} className="status-pill"><span className="status-dot"/>{m}</span>)}</div>
@@ -671,9 +653,6 @@ function App() {
     </nav>
   </div>
 }
-
-function NavItem({ icon, label, active, badge, onClick }) { return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{badge > 0 && <small>{badge}</small>}</button> }
-function TrackCard({ track, current, playing, onPlay, onAdd, inPlaylist, isRemove, hideCollection, onLike, isLiked }) { return <article className={`track-card ${current.trackId === track.trackId ? 'selected' : ''}`}><div className="cover-wrap" onClick={onPlay} role="button" aria-label={playing && current.trackId === track.trackId ? 'Pause' : 'Play'} title={playing && current.trackId === track.trackId ? 'Pause' : 'Play'}><img src={track.artworkUrl100?.replace('100x100', '300x300')} alt=""/>{playing && current.trackId === track.trackId && <span className="playing-bars"><i /><i /><i /></span>}</div><div className="track-meta"><div className="track-title">{track.trackName}</div><div className="track-bottom"><button className={isLiked ? 'liked' : ''} onClick={(event) => { event.stopPropagation(); onLike() }} aria-label={isLiked ? 'Unlike' : 'Like'} title={isLiked ? 'Unlike' : 'Like'}><Heart size={15} fill={isLiked ? 'currentColor' : 'none'}/></button><button className={inPlaylist ? 'added' : ''} onClick={(event) => { event.stopPropagation(); onAdd() }} aria-label={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'} title={isRemove ? 'Remove from playlist' : inPlaylist ? 'Remove from My playlist' : 'Add to playlist'}>{isRemove ? <Trash2 size={16}/> : inPlaylist ? <Heart size={15} fill="currentColor"/> : <Plus size={16}/>}</button></div></div></article> }
 
 createRoot(document.getElementById('root')).render(<App />)
 

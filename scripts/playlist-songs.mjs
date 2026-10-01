@@ -1,4 +1,3 @@
-// title — artist (transcribed from screenshots; #13-14, #27-30 were cut off)
 export const SONGS = [
   { title: 'Is This Love', artist: 'Bob Marley & The Wailers' },
   { title: 'Bohemian Rhapsody', artist: 'Queen' },

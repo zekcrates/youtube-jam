@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* Light + airy jam theme. Same fonts (Manrope / DM Mono / Georgia italic accents). */
 :root {
   font-family: 'Manrope', sans-serif;
   color: #201d18;
@@ -28,9 +27,8 @@ button, input { font: inherit; }
 button { cursor: pointer; border: 0; color: inherit; background: none; }
 img { display: block; }
 
-.app-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; padding-bottom: 92px; }
+.app-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100dvh; padding-bottom: 92px; }
 
-/* Sidebar */
 .sidebar {
   background: rgba(255, 255, 255, .82);
   backdrop-filter: blur(12px);
@@ -40,7 +38,9 @@ img { display: block; }
   flex-direction: column;
   position: sticky;
   top: 0;
-  height: 100vh;
+  align-self: stretch;
+  min-height: calc(100dvh + 92px);
+  height: auto;
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; letter-spacing: -.06em; padding: 0 12px 30px; }
 .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--lime); color: #1c220e; box-shadow: 0 4px 12px #c5ef5466; }
@@ -71,7 +71,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .space-card .soon { margin-left: auto; color: var(--lime-deep); font-family: 'DM Mono'; font-size: 9px; font-weight: 500; background: var(--lime-wash); padding: 3px 7px; border-radius: 20px; }
 .sidebar-foot { display: flex; justify-content: space-between; color: var(--faint); font-family: 'DM Mono'; font-size: 9px; margin: 20px 13px 0; }
 
-/* Main */
 .main-content { max-width: 1100px; width: 100%; margin: 0 auto; padding: 30px 52px 60px; }
 .topbar { display: flex; align-items: center; gap: 22px; }
 .eyebrow, .overline { font-family: 'DM Mono'; font-size: 10px; letter-spacing: .16em; color: var(--faint); }
@@ -119,7 +118,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .live-dot { animation: pulse 1.6s infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
 
-/* Track rows — light list */
 .track-grid { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
 .track-card {
   display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 14px;
@@ -145,7 +143,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   box-shadow: 0 4px 12px #3a2f1a33;
 }
 .track-card:hover .card-play, .track-card.selected .card-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-/* Touch screens have no hover — always show the cover play button. */
 @media (hover: none) {
   .card-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
@@ -163,7 +160,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .now-playing button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--faint); flex: none; }
 .now-playing button:hover { color: #e11d48; background: #fde4ea; }
 .now-playing button.liked { color: #e11d48; }
-/* Heart sits on the artwork corner instead of crowding the row. */
 .art-wrap { position: relative; flex: none; }
 .art-wrap button {
   position: absolute; right: -7px; bottom: -7px;
@@ -173,7 +169,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 }
 .art-wrap button:hover { color: #e11d48; border-color: #f3c2cb; }
 .art-wrap button.liked { color: #e11d48; border-color: #f3c2cb; background: #fde4ea; }
-/* Toasts: little confirmations floating above the player. */
 .toasts {
   position: fixed; left: 50%; transform: translateX(-50%);
   top: 92px; z-index: 30;
@@ -206,7 +201,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Player — floating light bar */
 .player {
   position: fixed; z-index: 5; left: calc(50% + 130px); transform: translateX(-50%);
   bottom: 18px; width: min(1060px, calc(100% - 292px));
@@ -237,7 +231,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .queue-button { background: var(--wash); color: #6f6a5e; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; margin-left: 10px; }
 .queue-button:hover { background: var(--lime-wash); color: var(--lime-deep); }
 
-/* Modals */
 .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgba(60, 50, 30, .28); backdrop-filter: blur(8px); }
 .playlist-modal, .create-modal, .chat-modal { border: 1px solid var(--line); border-radius: 22px; background: #fffefa; box-shadow: 0 30px 80px #3a2f1a33; animation: pop .18s ease-out; }
 @keyframes pop { from { transform: scale(.97) translateY(6px); opacity: 0; } }
@@ -357,7 +350,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .ad-copy strong { font-size: 12.5px; }
 .ad-copy span { color: var(--muted); font-size: 11px; margin-top: 2px; }
 .ad-tag { font-family: 'DM Mono'; font-size: 8.5px; letter-spacing: .12em; color: #e8e4da; background: rgba(0,0,0,.72); padding: 6px 10px; }
-/* Hidden embed engine; becomes a floating card while an ad plays. */
 .yt-holder { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0; pointer-events: none; overflow: hidden; }
 .ad-holder { position: fixed; right: 16px; bottom: 112px; z-index: 6; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px #3a2f1a33; background: #000; }
 @media (max-width: 650px) {
@@ -376,7 +368,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 .confirm-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: #b3261e; background: #fbe5e5; }
 .confirm-card h2 { margin: 2px 0 5px; font-size: 16px; letter-spacing: -.03em; }.confirm-card p { margin: 0; color: #77717a; font-size: 11px; line-height: 1.5; }.confirm-actions { grid-column: 1 / -1; display: flex; justify-content: end; align-items: center; gap: 17px; margin-top: 7px; }.danger-button { padding: 9px 15px; border-radius: 8px; color: #fff; background: #b3261e; font-size: 11px; font-weight: 800; }.danger-button:hover { background: #8f1c17; }
 
-/* App-only chrome (bottom tabs, chips, jam pill) — mobile only. */
 .mobile-tabs, .lib-chips, .jam-pill { display: none; }
 .mobile-home-heading { display: none; }
 .mobile-home-quote { display: none; }
@@ -402,7 +393,7 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
 
 @media (max-width: 1000px) {
   .app-shell { display: block; }
-  .sidebar { position: static; height: auto; padding: 16px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar { position: static; height: auto; min-height: 0; padding: 16px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { padding: 0 4px 4px; }
   .sidebar .nav-label, .sidebar .nav-group, .sidebar-bottom .tiny-label, .sidebar-foot { display: none; }
   .sidebar-bottom { margin-top: 12px; }
@@ -418,18 +409,15 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .track-card { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; padding: 7px 10px 7px 8px; }
   .cover-wrap { width: 48px; height: 48px; }
   .track-bottom span { display: none; }
-  /* (Phone player is fully defined in the block below.) */
   .modal-footer { flex-direction: column; align-items: stretch; }
 }
 
-/* Extra-small layout: keep the library usable without horizontal overflow. */
 @media (max-width: 650px) {
   .app-shell { min-width: 0; overflow-x: hidden; padding-bottom: 96px; }
   .sidebar { position: sticky; top: 0; z-index: 8; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; padding: 8px 14px; background: rgba(250, 248, 244, .86); box-shadow: 0 1px 0 var(--line); }
   .sidebar > .nav-group { display: none; }
   .brand { gap: 8px; padding: 0; font-size: 17px; }
   .brand-mark { width: 26px; height: 26px; border-radius: 8px; box-shadow: none; }
-  /* (Top-bar nav retired — tabs own navigation now.) */
   .sidebar > .nav-group .nav-item { height: 32px; padding: 0 9px; font-size: 10.5px; border-radius: 10px; }
   .sidebar > .nav-group .nav-item svg { width: 15px; height: 15px; }
   .sidebar > .nav-group .nav-item small { display: none; }
@@ -467,7 +455,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .track-bottom button { width: 34px; height: 34px; }
   .track-bottom button svg { width: 16px; height: 16px; }
   .track-meta { min-width: 0; }
-  /* Phone player: song row on top, full-width seek bar below. */
   .player {
     min-height: 0; height: auto;
     padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
@@ -488,7 +475,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .progress span { font-size: 9px; }
   .progress-range { min-width: 0; height: 6px; }
   .progress-range::-webkit-slider-thumb { width: 16px; height: 16px; }
-  /* Drawer retired on phones — tabs + chips replace it. */
   .mobile-menu-button { display: none; }
   .jam-pill {
     display: none;
@@ -498,7 +484,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   }
   .jam-pill .live-dot { margin-right: 0; }
 
-  /* Bottom tab bar. */
   .mobile-tabs {
     display: grid; grid-template-columns: repeat(3, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
@@ -517,7 +502,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .mobile-tabs button .chat-count { position: absolute; top: 2px; right: calc(50% - 20px); display: grid; place-items: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 99px; color: #fff; background: var(--lime-deep); font-family: 'DM Mono'; font-size: 8px; font-style: normal; }
   .mobile-tabs button .live-dot { position: absolute; top: 6px; right: calc(50% - 18px); margin: 0; }
 
-  /* Library playlist chips. */
   .lib-chips {
     display: flex; gap: 8px; overflow-x: auto;
     margin: 0 -12px 4px; padding: 2px 12px 8px; scrollbar-width: none;
@@ -531,7 +515,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .chip.active { background: var(--ink); border-color: var(--ink); color: #faf8f4; }
   .chip.new { padding: 9px 11px; color: var(--lime-deep); border-color: #c9d689; background: var(--lime-wash); }
 
-  /* Mini player floating above the tabs. */
   .main-content { padding-bottom: 210px; }
   .app-shell { padding-bottom: 0; }
   .player {
@@ -577,7 +560,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .confirm-icon { width: 36px; height: 36px; border-radius: 11px; }
 }
 
-/* Mobile navigation drawer */
 .mobile-menu-button, .mobile-nav-backdrop { display: none; }
 @media (max-width: 650px) {
   .mobile-menu-button {
@@ -594,7 +576,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
     flex: none;
   }
   .mobile-menu-button:active { background: var(--lime-wash); }
-  /* Top bar shows brand only; everything else lives in the drawer. */
   .sidebar:not(.mobile-open) > .nav-label,
   .sidebar:not(.mobile-open) > .nav-group,
   .sidebar:not(.mobile-open) > .sidebar-bottom { display: none; }
@@ -645,7 +626,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   }
 }
 
-/* Tabs replace the hamburger drawer — keep it buried. */
 @media (max-width: 650px) {
   .mobile-menu-button { display: none; }
   .home-welcome, .home-section-head, .home-track-grid { display: none; }
@@ -656,7 +636,6 @@ button.space-card:hover { border-color: #cfd8a6; transform: translateY(-1px); }
   .mobile-home-quote::before { content: '✦'; display: block; margin-bottom: 14px; color: var(--lime-deep); font-family: 'DM Mono'; font-size: 12px; font-style: normal; letter-spacing: 0; }
 }
 
-/* Mobile polish pass: curvy minimalist. Desktop untouched. */
 @media (max-width: 650px) {
   .main-content { padding: 18px 14px 248px; }
   .main-content.chat-open { overflow: hidden; }
