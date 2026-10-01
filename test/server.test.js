@@ -129,6 +129,24 @@ test('creates a jam, joins a second client, and syncs membership', async () => {
   }
 })
 
+test('notifies remaining members when someone disconnects', async () => {
+  const room = `L${Date.now().toString(36).slice(-6).toUpperCase()}`
+  const first = await openSocket()
+  const second = await openSocket()
+
+  try {
+    await joinRoom(first, room, 'Alice', true)
+    await joinRoom(second, room, 'Bob')
+
+    const membershipUpdate = waitForMessage(second, (message) => message.t === 'members' && message.members.length === 1)
+    first.close()
+
+    assert.deepEqual(await membershipUpdate, { t: 'members', members: ['Bob'] })
+  } finally {
+    second.close()
+  }
+})
+
 test('broadcasts playback state and chat messages to other jam members', async () => {
   const room = `S${Date.now().toString(36).slice(-6).toUpperCase()}`
   const first = await openSocket()
