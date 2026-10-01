@@ -11,6 +11,7 @@ import {
   api, BACKEND, forHerPlaylist, formatSeconds, loadPlaylists,
   createRoomCode, localTracks, readStoredArray, starterTracks, toYoutubeTrack,
 } from './app-data'
+import { normalizeRoomCode } from './app-utils'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -241,7 +242,7 @@ function App() {
   }
 
   const joinJam = (code, create = false, asName) => {
-    const room = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+    const room = normalizeRoomCode(code)
     if (!room) { setJamStatus('Enter the room code your friend shared first.'); return }
     const who = (asName || jamName || 'guest').slice(0, 24)
     setJamStatus('Connecting…')

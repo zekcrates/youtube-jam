@@ -1,4 +1,5 @@
 import featuredPlaylist from './featured-playlist.json'
+import { createRoomCode, formatSeconds, normalizePlaylists, toYoutubeTrack } from './app-utils'
 
 const backend = (import.meta.env.VITE_JAM_API || '').replace(/\/$/, '')
 
@@ -36,17 +37,6 @@ const artistAliases = {
   SHUBH: 'Shubh',
 }
 
-export const toYoutubeTrack = (track, prefix = 'yt') => ({
-  trackId: `${prefix}-${track.videoId}`,
-  youtubeId: track.videoId,
-  trackName: track.title,
-  artistName: track.artist,
-  collectionName: 'YouTube',
-  artworkUrl100: track.thumbnail,
-  previewUrl: api(`/api/stream?id=${track.videoId}`),
-  trackTimeMillis: (track.durationSec || 0) * 1000,
-})
-
 export const forHerPlaylist = {
   id: 'playlist-for-her',
   name: 'for her',
@@ -54,14 +44,7 @@ export const forHerPlaylist = {
   tracks: featuredPlaylist.map((track) => toYoutubeTrack({
     ...track,
     artist: artistAliases[track.artist] || track.artist.replace(/\s+Official$/i, '').trim(),
-  }, 'feat')),
-}
-
-export const formatSeconds = (seconds = 0) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
-
-export const createRoomCode = () => {
-  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 4 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+  }, api, 'feat')),
 }
 
 export const readStoredArray = (key) => {
@@ -75,13 +58,7 @@ export const readStoredArray = (key) => {
 
 export const loadPlaylists = () => {
   const stored = readStoredArray('muse-playlists')
-  if (!stored.length) return [forHerPlaylist]
-
-  const normalized = stored.map((playlist) => playlist.id === forHerPlaylist.id
-    ? { ...playlist, name: 'for her', tracks: playlist.tracks.map((track) => ({ ...track, collectionName: '' })) }
-    : playlist)
-
-  return normalized.some((playlist) => playlist.id === forHerPlaylist.id)
-    ? normalized
-    : [forHerPlaylist, ...normalized]
+  return normalizePlaylists(stored, forHerPlaylist)
 }
+
+export { createRoomCode, formatSeconds, toYoutubeTrack }
