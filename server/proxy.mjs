@@ -114,29 +114,6 @@ async function resolveAudioUrl(videoId) {
   throw lastErr;
 }
 
-app.get('/api/diag', async (req, res) => {
-  try {
-    const id = String(req.query.id || '').trim();
-    if (!/^[\w-]{11}$/.test(id)) return res.status(400).json({ error: 'bad id' });
-    const innertube = await getYt();
-    const report = [];
-    for (const name of CLIENT_PLAN) {
-      try {
-        const { status, fmts, withUrl } = await probeClient(innertube, id, name);
-        const direct = status === 'OK' ? pickDirect(fmts) : null;
-        const ciphered = status === 'OK' && !direct ? pickCiphered(fmts) : null;
-        let verified = null;
-        if (direct) verified = await verifyUrl(direct.url);
-        if (verified !== true && ciphered) {
-          try { verified = await verifyUrl(await ciphered.decipher(innertube.session.player)); } catch { verified = false; }
-        }
-        report.push({ client: name, status, formats: fmts.length, withUrl, directItag: direct?.itag || null, cipheredItag: ciphered?.itag || null, verified });
-      } catch (e) { report.push({ client: name, error: String(e && e.message || e).slice(0, 160) }); }
-    }
-    res.json({ id, auth: !!process.env.YT_COOKIE, report });
-  } catch (e) { res.status(500).json({ error: String(e).slice(0, 300) }); }
-});
-
 app.get('/api/health', (_req, res) => res.json({ ok: true, yt: !!yt, auth: !!process.env.YT_COOKIE }));
 
 app.get('/api/search', async (req, res) => {

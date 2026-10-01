@@ -7,6 +7,18 @@ export const createRoomCode = () => {
 
 export const normalizeRoomCode = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
 
+export const getYoutubeErrorMessage = (code) => {
+  const messages = {
+    2: 'This song could not be loaded. Try another one.',
+    5: 'This song could not play in your browser. Try another one.',
+    100: 'This video is unavailable. Try another song.',
+    101: 'This song can’t play here because embedding is disabled.',
+    150: 'This song can’t play here because embedding is disabled.',
+    153: 'YouTube could not verify playback. Try again in a moment.',
+  }
+  return messages[code] || 'Something went wrong while loading this song. Try another one.'
+}
+
 export const parseStoredArray = (value) => {
   try {
     const parsed = JSON.parse(value || 'null')

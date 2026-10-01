@@ -1,5 +1,5 @@
 import featuredPlaylist from './featured-playlist.json'
-import { createRoomCode, formatSeconds, normalizePlaylists, parseStoredArray, toYoutubeTrack } from './app-utils'
+import { createRoomCode, formatSeconds, getYoutubeErrorMessage, normalizePlaylists, parseStoredArray, toYoutubeTrack } from './app-utils'
 
 const backend = (import.meta.env.VITE_JAM_API || '').replace(/\/$/, '')
 
@@ -60,4 +60,4 @@ export const loadPlaylists = () => {
   return normalizePlaylists(stored, forHerPlaylist)
 }
 
-export { createRoomCode, formatSeconds, parseStoredArray, toYoutubeTrack }
+export { createRoomCode, formatSeconds, getYoutubeErrorMessage, parseStoredArray, toYoutubeTrack }

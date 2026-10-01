@@ -8,7 +8,7 @@ import {
 import './styles.css'
 import { NavItem, SearchBar, TrackCard } from './components'
 import {
-  api, BACKEND, forHerPlaylist, formatSeconds, loadPlaylists,
+  api, BACKEND, forHerPlaylist, formatSeconds, getYoutubeErrorMessage, loadPlaylists,
   createRoomCode, localTracks, readStoredArray, starterTracks, toYoutubeTrack,
 } from './app-data'
 import { addTrack as addTrackToList, hasTrack, normalizeRoomCode, removeTrack, toggleTrack as toggleListTrack } from './app-utils'
@@ -134,6 +134,7 @@ function App() {
   }
   const setTrack = (track, position) => {
     setAdInfo(null)
+    setSearchError('')
     setCurrent(track)
     setCurrentTime(position)
     setDuration(track.trackTimeMillis / 1000 || 0)
@@ -151,8 +152,14 @@ function App() {
     const audio = audioRef.current
     audio.src = track.streamUrl || track.previewUrl
     audio.currentTime = Math.max(0, position)
-    if (shouldPlay) audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    if (shouldPlay) audio.play().then(() => setPlaying(true)).catch(() => handlePlaybackFailure('This song could not play. Try another one.'))
     else { audio.pause(); setPlaying(false) }
+  }
+
+  const handlePlaybackFailure = (message) => {
+    setPlaying(false)
+    setSearchError(message)
+    pushToast(message, 'error')
   }
 
   const playTrackAt = (track, position, shouldPlay) => {
@@ -178,7 +185,7 @@ function App() {
               else if (e.data === st.PAUSED) setPlaying(false)
               else if (e.data === st.ENDED) { setPlaying(false); setCurrentTime(0) }
             },
-            onError: () => { setPlaying(false); setSearchError('This song can’t play here — the owner disabled embedding. Pick another.') },
+            onError: (event) => handlePlaybackFailure(getYoutubeErrorMessage(event.data)),
           },
         })
       } catch {}
@@ -230,7 +237,7 @@ function App() {
       if (state.playing && paused) {
         setPlaying(true)
         if (state.track.youtubeId) ytExec({ type: 'play' })
-        else audioRef.current?.play()?.then(() => setPlaying(true)).catch(() => setPlaying(false))
+        else audioRef.current?.play()?.then(() => setPlaying(true)).catch(() => handlePlaybackFailure('This song could not play. Try another one.'))
       }
       if (!state.playing && !paused) {
         setPlaying(false)
@@ -445,7 +452,7 @@ function App() {
     }
     if (!audioRef.current.src) audioRef.current.src = track.streamUrl || track.previewUrl
     if (playing) { audioRef.current.pause(); setPlaying(false) }
-    else audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    else audioRef.current.play().then(() => setPlaying(true)).catch(() => handlePlaybackFailure('This song could not play. Try another one.'))
   }
 
   const togglePlay = (track = current) => {

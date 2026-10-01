@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   createRoomCode,
   formatSeconds,
+  getYoutubeErrorMessage,
   addTrack,
   hasTrack,
   normalizePlaylists,
@@ -29,6 +30,13 @@ test('creates room codes that can be shared and joined', () => {
 test('normalizes room input without changing the server contract', () => {
   assert.equal(normalizeRoomCode(' ab-c_12!3456789 '), 'ABC12345')
   assert.equal(normalizeRoomCode(''), '')
+})
+
+test('turns YouTube playback failures into useful user messages', () => {
+  assert.match(getYoutubeErrorMessage(100), /unavailable/i)
+  assert.match(getYoutubeErrorMessage(150), /embedding is disabled/i)
+  assert.match(getYoutubeErrorMessage(5), /browser/i)
+  assert.match(getYoutubeErrorMessage(999), /Something went wrong/i)
 })
 
 test('parses only valid saved arrays', () => {

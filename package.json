@@ -9,9 +9,9 @@
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage",
     "preview": "vite preview",
-    "proxy": "node server/yt-proxy.mjs",
-    "start": "node server/yt-proxy.mjs",
-    "dev:all": "node server/yt-proxy.mjs & vite"
+    "proxy": "node server/proxy.mjs",
+    "start": "node server/proxy.mjs",
+    "dev:all": "node server/proxy.mjs & vite"
   },
   "dependencies": {
     "@tailwindcss/vite": "latest",

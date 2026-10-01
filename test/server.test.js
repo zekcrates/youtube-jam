@@ -1,7 +1,7 @@
 import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
 import WebSocket from 'ws'
-import { normalizeRoom, pickCiphered, pickDirect, server, wss } from '../server/yt-proxy.mjs'
+import { normalizeRoom, pickCiphered, pickDirect, server, wss } from '../server/proxy.mjs'
 
 let baseUrl
 
@@ -75,14 +75,10 @@ test('serves health and empty-room endpoints without contacting YouTube', async 
   assert.deepEqual(await room.json(), { room: 'NOTFOUND', members: [], hasState: false })
 })
 
-test('rejects malformed video ids before making upstream requests', async () => {
+test('rejects malformed stream ids before making upstream requests', async () => {
   const stream = await fetch(`${baseUrl}/api/stream?id=not-valid`)
   assert.equal(stream.status, 400)
   assert.deepEqual(await stream.json(), { error: 'bad id' })
-
-  const diagnostic = await fetch(`${baseUrl}/api/diag?id=not-valid`)
-  assert.equal(diagnostic.status, 400)
-  assert.deepEqual(await diagnostic.json(), { error: 'bad id' })
 })
 
 test('returns empty results for empty or too-short search inputs', async () => {
