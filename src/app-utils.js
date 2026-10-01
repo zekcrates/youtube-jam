@@ -7,6 +7,25 @@ export const createRoomCode = () => {
 
 export const normalizeRoomCode = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
 
+export const parseStoredArray = (value) => {
+  try {
+    const parsed = JSON.parse(value || 'null')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export const hasTrack = (tracks, trackId) => tracks.some((track) => track.trackId === trackId)
+
+export const addTrack = (tracks, track) => hasTrack(tracks, track.trackId) ? tracks : [...tracks, track]
+
+export const removeTrack = (tracks, trackId) => tracks.filter((track) => track.trackId !== trackId)
+
+export const toggleTrack = (tracks, track) => hasTrack(tracks, track.trackId)
+  ? removeTrack(tracks, track.trackId)
+  : [...tracks, track]
+
 export const toYoutubeTrack = (track, api, prefix = 'yt') => ({
   trackId: `${prefix}-${track.videoId}`,
   youtubeId: track.videoId,
@@ -22,7 +41,7 @@ export const normalizePlaylists = (stored, featuredPlaylist) => {
   if (!stored.length) return [featuredPlaylist]
 
   const normalized = stored.map((playlist) => playlist.id === featuredPlaylist.id
-    ? { ...playlist, name: 'for her', tracks: playlist.tracks.map((track) => ({ ...track, collectionName: '' })) }
+    ? { ...playlist, name: 'for her', tracks: (Array.isArray(playlist.tracks) ? playlist.tracks : []).map((track) => ({ ...track, collectionName: '' })) }
     : playlist)
 
   return normalized.some((playlist) => playlist.id === featuredPlaylist.id)

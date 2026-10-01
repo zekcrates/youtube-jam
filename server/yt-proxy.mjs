@@ -303,4 +303,8 @@ if (fs.existsSync(path.join(distDir, 'index.html'))) {
   });
 }
 
-server.listen(PORT, () => console.log(`[jam] listening on http://localhost:${PORT}`));
+const startServer = () => server.listen(PORT, () => console.log(`[jam] listening on http://localhost:${PORT}`));
+
+export { app, normalizeRoom, pickCiphered, pickDirect, server, startServer, wss };
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) startServer();

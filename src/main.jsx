@@ -11,7 +11,7 @@ import {
   api, BACKEND, forHerPlaylist, formatSeconds, loadPlaylists,
   createRoomCode, localTracks, readStoredArray, starterTracks, toYoutubeTrack,
 } from './app-data'
-import { normalizeRoomCode } from './app-utils'
+import { addTrack as addTrackToList, hasTrack, normalizeRoomCode, removeTrack, toggleTrack as toggleListTrack } from './app-utils'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -506,31 +506,31 @@ function App() {
   const viewingCustom = selectedPlaylist !== 'local' && selectedPlaylist !== 'my' && selectedPlaylist !== 'liked'
   const customViewed = viewingCustom ? playlists.find((item) => item.id === selectedPlaylist) : null
   const isInTarget = (track) => viewingCustom && customViewed
-    ? customViewed.tracks.some((song) => song.trackId === track.trackId)
-    : playlist.some((song) => song.trackId === track.trackId)
+    ? hasTrack(customViewed.tracks, track.trackId)
+    : hasTrack(playlist, track.trackId)
   const toggleTrack = (track) => {
     if (viewingCustom && customViewed) {
-      const has = customViewed.tracks.some((song) => song.trackId === track.trackId)
+      const has = hasTrack(customViewed.tracks, track.trackId)
       setPlaylists((old) => old.map((item) => {
         if (item.id !== selectedPlaylist) return item
-        return { ...item, tracks: has ? item.tracks.filter((song) => song.trackId !== track.trackId) : [...item.tracks, track] }
+        return { ...item, tracks: toggleListTrack(item.tracks, track) }
       }))
       pushToast(has ? `Removed from ${customViewed.name}` : `Added to ${customViewed.name}`)
       return
     }
-    const has = playlist.some((item) => item.trackId === track.trackId)
-    setPlaylist((old) => has ? old.filter((item) => item.trackId !== track.trackId) : [...old, track])
+    const has = hasTrack(playlist, track.trackId)
+    setPlaylist((old) => toggleListTrack(old, track))
     pushToast(has ? 'Removed from My playlist' : 'Added to My playlist')
   }
   const addTrackTo = (listId, track) => {
     if (!track) return
     const name = listId === 'my' ? 'My playlist' : playlists.find((p) => p.id === listId)?.name || 'playlist'
-    if (listId === 'my') setPlaylist((old) => old.some((item) => item.trackId === track.trackId) ? old : [...old, track])
-    else setPlaylists((old) => old.map((item) => item.id === listId && !item.tracks.some((song) => song.trackId === track.trackId) ? { ...item, tracks: [...item.tracks, track] } : item))
+    if (listId === 'my') setPlaylist((old) => addTrackToList(old, track))
+    else setPlaylists((old) => old.map((item) => item.id === listId ? { ...item, tracks: addTrackToList(item.tracks, track) } : item))
     setAddTarget(null)
     pushToast(`Added to ${name}`)
   }
-  const removeFromPlaylist = (id) => setPlaylist((old) => old.filter((item) => item.trackId !== id))
+  const removeFromPlaylist = (id) => setPlaylist((old) => removeTrack(old, id))
   const deletePlaylist = (id) => {
     setPlaylists((old) => old.filter((item) => item.id !== id))
     if (selectedPlaylist === id) { setSelectedPlaylist('local'); setActiveTab('Library'); setTracks(localTracks) }
@@ -541,7 +541,7 @@ function App() {
     if (confirmDelete.kind === 'playlist') { deletePlaylist(confirmDelete.id); pushToast(`Deleted “${confirmDelete.label}”`) }
     if (confirmDelete.kind === 'track') {
       if (confirmDelete.playlistId === 'my') removeFromPlaylist(confirmDelete.id)
-      else setPlaylists((old) => old.map((item) => item.id === confirmDelete.playlistId ? { ...item, tracks: item.tracks.filter((track) => track.trackId !== confirmDelete.id) } : item))
+      else setPlaylists((old) => old.map((item) => item.id === confirmDelete.playlistId ? { ...item, tracks: removeTrack(item.tracks, confirmDelete.id) } : item))
       pushToast(`Removed “${confirmDelete.label}”`)
     }
     setConfirmDelete(null)
